@@ -1,0 +1,124 @@
+# ==== Global Git Ignore (Arshia's Stack) ====
+# OS / Desktop files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+Icon?
+*.swp
+*.swo
+*~
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+*.pyo
+*.pyd
+*.pkl
+*.pickle
+*.ipynb_checkpoints/
+.env
+.venv/
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+*.cover
+*.log
+
+# ===== Notebooks & Jupyter =====
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+*.nb.html
+*.nb.pdf
+
+# ===== VS Code =====
+.vscode/
+.history/
+.code-workspace
+.idea/
+
+# ===== System / Linux =====
+*.lock
+*.bak
+*.tmp
+*.temp
+*.log
+*.out
+*.pid
+*.seed
+*.pid.lock
+.cache/
+.Trash-*/
+*.old
+
+# ===== Docker =====
+*.pid
+*.seed
+*.pid.lock
+*.backup
+.docker/
+docker-compose.override.yml
+docker-compose.override.yaml
+docker-compose.local.yml
+docker-compose.local.yaml
+**/.env.docker
+**/tmp/
+**/.pytest_cache/
+
+# ===== Environment / Secrets =====
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.der
+secrets.json
+credentials.json
+token.json
+
+# ===== Virtual Environments =====
+venv*/
+ENV*/
+env*/
+.venv*/
+.pyenv/
+.site_packages/
+
+# ===== Logs =====
+logs/
+*.log
+*.gz
+
+# ===== Data Caches =====
+*.csv~
+*.dat~
+*.db~
+*.sqlite3~
+*.sqlite~
+__mocks__/
+.mypy_cache/
+.pytest_cache/
+pytestdebug.log
+.DS_Store?
+*.ipynb_checkpoints
