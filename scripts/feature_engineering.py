@@ -13,7 +13,7 @@ def scale_financial_feature(df: pd.DataFrame) -> pd.DataFrame:
         if col in scaled_df.columns:
             scaled_df[col] = np.log(scaled_df[col])
             
-    inputs = [c for c in ['USD', 'Oil', 'Gold']]
+    inputs = [c for c in ['USD', 'Oil']]
     scaled_inputs = scaler.fit_transform(scaled_df[inputs])
     scaled_df[inputs] = scaled_inputs      
     
