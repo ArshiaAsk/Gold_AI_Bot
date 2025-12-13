@@ -24,7 +24,7 @@ def create_feature_dataset(input_path, output_path):
     
     # Convert Rial to Toman by dividing by 10
     df['Gold_Toman'] = df['Gold_IRR'] / 10
-    df['USD_Toman'] = df['USD_IRR'] 
+    df['USD_Toman'] = df['USD_IRR'] / 10
     
     # Convert USD-based assets to Toman by multiplying with the daily USD_Toman rate
     df['Ounce_Toman'] = df['Ounce_USD'] * df['USD_Toman']
