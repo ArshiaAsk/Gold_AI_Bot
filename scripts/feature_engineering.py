@@ -1,53 +1,89 @@
 import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+import joblib
+import os
 
-def create_feature_dataset(input_path, output_path):
-    """
-    Loads the cleaned dataset, normalizes all monetary values to Toman,
-    reorders columns, and saves the final feature-ready dataset.
+def process_features(input_path="datasets/final_features_toman.csv", output_dir="processed_data_v2"):
+    print("--- Starting Advanced Feature Engineering (Log Returns Strategy) ---")
     
-    Args:
-        input_path (str): Path to the cleaned CSV file (e.g., 'cleaned_gold_dataset.csv').
-        output_path (str): Path to save the final feature-engineered CSV file.
-    """
-    print(f"--- Feature Engineering Started: Loading {input_path} ---")
-    
-    # 1. Load the cleaned and imputed dataset
+    # 1. Load Data
     df = pd.read_csv(input_path)
     df['Date'] = pd.to_datetime(df['Date'])
+    df = df.sort_values('Date').reset_index(drop=True)
     
-    print("Initial columns and data types:\n", df.info())
-    print("\nOriginal Data Sample:\n", df.head())
+    # 2. Calculate Log Returns 
+    cols_to_convert = ['Gold_Toman', 'USD_Toman', 'Ounce_Toman', 'Oil_Toman']
+    
+    for col in cols_to_convert:
+        # ln(Price_t / Price_t-1)
+        df[f'{col}_LogRet'] = np.log(df[col] / df[col].shift(1))
+    
+    # Drop first row(NaN)
+    df = df.dropna().reset_index(drop=True)
 
-    # 2. Normalize currencies to Toman
-    # Assumption: USD_IRR from TGJU is the price in Rial, like Gold_IRR.
-    print("\nStep 2: Normalizing all prices to Toman...")
+    # 3. Create Lag Features based on RETURNS 
+    features_to_lag = [f'{c}_LogRet' for c in cols_to_convert]
+    lags = [1, 2, 3, 5]  
     
-    # Convert Rial to Toman by dividing by 10
-    df['Gold_Toman'] = df['Gold_IRR'] / 10
-    df['USD_Toman'] = df['USD_IRR'] / 10
+    cols = []
+    for col in features_to_lag:
+        for lag in lags:
+            col_name = f'{col}_Lag_{lag}'
+            df[col_name] = df[col].shift(lag)
+            cols.append(col_name)
     
-    # Convert USD-based assets to Toman by multiplying with the daily USD_Toman rate
-    df['Ounce_Toman'] = df['Ounce_USD'] * df['USD_Toman']
-    df['Oil_Toman'] = df['Oil_USD'] * df['USD_Toman']
+    # 4. Define Target 
+    df['Target_NextDay_LogRet'] = df['Gold_Toman_LogRet'].shift(-1)
     
-    print("   ✅ Currency normalization complete.")
-
-    # 3. Select and reorder columns for the final dataset
-    # The 'Date' column is moved to the front, followed by the new Toman-based features.
-    final_columns = ['Date', 'Gold_Toman', 'USD_Toman', 'Ounce_Toman', 'Oil_Toman']
-    df_features = df[final_columns]
+    df_final = df.dropna().reset_index(drop=True)
     
-    print("\nStep 3: Columns reordered and selected.")
-
-    # 4. Save the final feature-engineered dataset
-    df_features.to_csv(output_path, index=False, float_format='%.2f')
+    print(f"Dataset Shape after processing: {df_final.shape}")
     
-    print(f"\n✅ FEATURE ENGINEERING COMPLETE! File saved to: {output_path}")
-    print("\nFinal Feature-Engineered Data Sample:\n", df_features.head())
+    # 5. Prepare X and y
+    feature_cols = [c for c in df_final.columns if 'Lag' in c]
+    X = df_final[feature_cols].values
+    y = df_final['Target_NextDay_LogRet'].values.reshape(-1, 1)
+    
+    actual_prices = df_final['Gold_Toman'].values.reshape(-1, 1)
+    dates = df_final['Date'].values
+    
+    # 6. Train/Test Split (Time-based)
+    train_size = int(len(X) * 0.85)
+    
+    X_train, X_test = X[:train_size], X[train_size:]
+    y_train, y_test = y[:train_size], y[train_size:]
+    
+    prices_test = actual_prices[train_size:] 
+    dates_test = dates[train_size:]
+    
+    # 7. Scaling (Using StandardScaler for Returns)
+    scaler_X = StandardScaler()
+    scaler_y = StandardScaler()
+    
+    X_train_scaled = scaler_X.fit_transform(X_train)
+    X_test_scaled = scaler_X.transform(X_test)
+    
+    y_train_scaled = scaler_y.fit_transform(y_train)
+    y_test_scaled = scaler_y.transform(y_test)
+    
+    # 8. Save Everything
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        
+    np.save(f'{output_dir}/X_train.npy', X_train_scaled)
+    np.save(f'{output_dir}/X_test.npy', X_test_scaled)
+    np.save(f'{output_dir}/y_train.npy', y_train_scaled)
+    np.save(f'{output_dir}/y_test.npy', y_test_scaled)
+    
+    np.save(f'{output_dir}/prices_test_base.npy', prices_test) 
+    np.save(f'{output_dir}/dates_test.npy', dates_test)
+    
+    joblib.dump(scaler_X, f'{output_dir}/scaler_X.pkl')
+    joblib.dump(scaler_y, f'{output_dir}/scaler_y.pkl')
+    
+    print("✅ Feature Engineering Complete. Data saved to 'processed_data_v2/'")
+    print(f"Features used: {len(feature_cols)}")
 
 if __name__ == "__main__":
-    # Define input from the previous step and output for the modeling step
-    cleaned_file = "cleaned_gold_dataset.csv"
-    features_file = "final_features_toman.csv"
-    
-    create_feature_dataset(cleaned_file, features_file)
+    process_features()
