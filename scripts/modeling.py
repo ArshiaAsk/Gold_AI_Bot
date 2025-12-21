@@ -15,6 +15,7 @@ tf.random.set_seed(42)
 def build_and_train_model(data_dir="processed_data_v2", model_save_path="gold_lstm_v2.h5"):
     print("---  Loading Data (Log Returns Strategy) ---")
     
+    # Load Data
     X_train = np.load(f'{data_dir}/X_train.npy')
     y_train = np.load(f'{data_dir}/y_train.npy')
     X_test = np.load(f'{data_dir}/X_test.npy')
