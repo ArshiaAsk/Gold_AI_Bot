@@ -82,15 +82,15 @@ class DataConfig:
 class ModelConfig:
     """LSTM model architecture configurations"""
     # Architecture
-    LSTM_UNITS_1: int = 128
-    LSTM_UNITS_2: int = 64
-    DENSE_UNITS: int = 32
+    LSTM_UNITS_1: int = 64
+    LSTM_UNITS_2: int = 32
+    DENSE_UNITS: int = 16
     DROPOUT_RATE: float = 0.3
     
     # Training
-    LEARNING_RATE: float = 0.0005
-    EPOCHS: int = 150
-    BATCH_SIZE: int = 32
+    LEARNING_RATE: float = 0.001
+    EPOCHS: int = 100
+    BATCH_SIZE: int = 16
     
     # Callbacks
     EARLY_STOPPING_PATIENCE: int = 15
@@ -99,7 +99,7 @@ class ModelConfig:
     MIN_LR: float = 0.00001
     
     # Sequence settings
-    SEQUENCE_LENGTH: int = 1  # LSTM input timesteps
+    SEQUENCE_LENGTH: int = 30  # LSTM input timesteps
     
     def get_optimizer_config(self) -> dict:
         """Return optimizer configuration"""
