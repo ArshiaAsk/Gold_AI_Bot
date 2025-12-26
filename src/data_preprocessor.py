@@ -11,7 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class DataProcessor:
+class DataPreprocessor:
     """Handle data preprocessing for LSTM training"""
 
     def __init__(self, feature_columns: list, target_column: str,
