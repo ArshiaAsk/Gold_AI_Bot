@@ -127,3 +127,97 @@ class LSTMModelBuilder:
     def print_model_summary(self, model: keras.Model):
         """Print model artitecture summary"""
         model.summary()
+
+
+
+class ModelTrainer:
+    """Handle model training process"""
+
+    def __init__(self, model: keras.Model):
+        """
+        Initialize trainer
+
+        Args: 
+            model: Compile Keras model
+        """
+        self.model = model
+        self.history = None
+
+
+    def train(self,
+              X_train, y_train,
+              X_val, y_val,
+              epochs: int = 100,
+              batch_size: int = 16,
+              callbacks: List = None,
+              verbose: int = 1) -> keras.callbacks.History:
+        """  
+        Train the model
+        
+        Args:
+            X_train, y_train: Training data
+            X_val, y_val: Validation data
+            epochs: Number of training epochs
+            batch_size: Batch size
+            callbacks: List of Keras callbacks
+            verbose: Verbosity level
+            
+        Returns:
+            Training history
+        """
+        logger.info(f"Starting training for {epochs} epochs with batch size {batch_size}")
+
+        self.history = self.model.fit(
+            X_train, y_train,
+            validation_data=(X_val, y_val),
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=callbacks if callbacks else [],
+            verbose=verbose
+        )
+        
+        logger.info("Training completed")
+        return self.history
+    
+
+    def evaluate(self, X_test, y_test, verbose: int = 0) -> dict:
+        """
+        Evaluate model on test data
+        
+        Args:
+            X_test, y_test: Test data
+            verbose: Verbosity level
+            
+        Returns:
+            Dictionary of metrics
+        """
+        results = self.model.evaluate(X_test, y_test, verbose=verbose)
+
+        metrics = {
+            'loss': results[0],
+            'mae': results[1],
+            'mse': results[2]
+        }
+
+        logger.info(f"Test Metrics - Loss: {metrics['loss']:.6f}, MAE: {metrics['mae']:.6f}, MSE: {metrics['mse']:.6f}")
+
+        return metrics
+    
+
+    def save_model(self, filepath: str):
+        """Save trained model"""
+        self.model.save(filepath)
+        logger.info(f"Model saved to {filepath}")
+
+    
+    def load_model(self, filepath: str):
+        """Load trained model"""
+        self.model = keras.models.load_model(filepath)
+        logger.info(f"Model loaded from {filepath}")
+
+
+    def get_training_history(self) -> dict:
+        """Return training history as dictionary"""
+        if self.history is None:
+            return {}
+        return self.history.history
