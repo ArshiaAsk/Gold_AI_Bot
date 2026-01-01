@@ -27,10 +27,6 @@ This project implements a robust LSTM neural network to predict gold prices in I
 
 Gold_Usd_Oil_IRR/
 
-├── config/
-
-│ └── settings.py # Configuration management
-
 ├── data/
 
 │ ├── raw/ # Raw data files
