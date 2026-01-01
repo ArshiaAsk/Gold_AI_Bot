@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 class LSTMModelBuilder:
     """Build and configure LSTM model for time series prediction"""
 
-    def __init_(self, 
-                lstm_units_1: int = 64,
-                lstm_units_2: int = 32,
-                dense_units: int = 16,
-                dropout_rate: float = 0.3,
-                learning_rate: float = 0.001,
-                random_state: int = 42):
+    def __init__(self, 
+                lstm_units_1: int,
+                lstm_units_2: int,
+                dense_units: int,
+                dropout_rate: float,
+                learning_rate: float,
+                random_state: int):
         """
         Initialize model builder
         
@@ -147,8 +147,8 @@ class ModelTrainer:
     def train(self,
               X_train, y_train,
               X_val, y_val,
-              epochs: int = 100,
-              batch_size: int = 16,
+              epochs: int,
+              batch_size: int,
               callbacks: List = None,
               verbose: int = 1) -> keras.callbacks.History:
         """  

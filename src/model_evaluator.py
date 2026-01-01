@@ -83,6 +83,10 @@ class ModelEvaluator:
         Returns:
             Reconstructed prices
         """
+        if len(base_prices) != len(log_return):
+            diff = len(base_prices) - len(log_return)
+            base_prices = base_prices[diff:]
+        
         return base_prices * np.exp(log_return)
 
 
@@ -180,6 +184,9 @@ class Visualizer:
             metrics: Dictionary of evaluation metrics
             save_path: Path to save plot
         """
+        if len(dates) != len(actual_prices):
+            dates = dates[-len(actual_prices):]
+
         fig, ax = plt.subplots(figsize=(16, 8))
         
         # Plot prices

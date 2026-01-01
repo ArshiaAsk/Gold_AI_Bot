@@ -53,7 +53,7 @@ class DataPreprocessor:
         df = pd.read_csv(filepath)
 
         # Validate required columns
-        missing_features = set(self.feature_columns) - set(self.df.columns)
+        missing_features = set(self.feature_columns) - set(df.columns)
         if missing_features:
             raise ValueError(f"Missing feature columns: {missing_features}")
         
@@ -110,7 +110,7 @@ class DataPreprocessor:
         """
         # Fit scaler on training data only
         X_train = self.scaler_X.fit_transform(train_df[self.feature_columns])
-        y_train = self.scaler_y.fit_transform(train_df[self.target_column])
+        y_train = self.scaler_y.fit_transform(train_df[[self.target_column]])
 
         # Transform validation and test data
         X_val = self.scaler_X.transform(val_df[self.feature_columns])
@@ -124,7 +124,7 @@ class DataPreprocessor:
         return X_train, y_train, X_val, y_val, X_test, y_test
     
 
-    def reshape_for_lstm(self, X: np.ndarray, sequence_lengh: int = 1) -> np.ndarray:
+    def reshape_for_lstm(self, X: np.ndarray, sequence_length: int = 1) -> np.ndarray:
         """
          Reshape data for LSTM input: (samples, timesteps, features)
         
@@ -135,10 +135,17 @@ class DataPreprocessor:
         Returns:
             Reshaped array of shape (samples, timesteps, features)
         """
-        return X.shape((X.shape[0], sequence_lengh, X.shape[1]))
+        X_3d = []
+        for i in range(len(X) - sequence_length):
+            window = X[i: i + sequence_length]
+            X_3d.append(window)
+
+        return np.array(X_3d)
+
+        # return X.reshape((X.shape[0], sequence_length, X.shape[1]))
     
 
-    def prepare_data(self, filepath: str, sequence_lengh: int = 1) -> Dict:
+    def prepare_data(self, filepath: str, sequence_length: int) -> Dict:
         """
         Complete data preparation pipeline
         
@@ -161,9 +168,13 @@ class DataPreprocessor:
         )
 
         # Reshape for LSTM
-        X_train = self.reshape_for_lstm(X_train, sequence_lengh)
-        X_val = self.reshape_for_lstm(X_val, sequence_lengh)
-        X_test = self.reshape_for_lstm(X_test, sequence_lengh)
+        X_train = self.reshape_for_lstm(X_train, sequence_length)
+        X_val = self.reshape_for_lstm(X_val, sequence_length)
+        X_test = self.reshape_for_lstm(X_test, sequence_length)
+
+        y_train = y_train[sequence_length:]
+        y_val = y_val[sequence_length:]
+        y_test = y_test[sequence_length:]
 
         # Store metadata for price reconstruction
         metadata = {
@@ -173,6 +184,18 @@ class DataPreprocessor:
             'train_prices': train_df['Gold_IRR'].values if 'Gold_IRR' in train_df.columns else None,
             'val_prices': val_df['Gold_IRR'].values if 'Gold_IRR' in val_df.columns else None,
             'test_prices': test_df['Gold_IRR'].values if 'Gold_IRR' in test_df.columns else None,
+        }
+
+        return {
+            'X_train': X_train,
+            'y_train': y_train,
+            'X_val': X_val,
+            'y_val': y_val,
+            'X_test': X_test,
+            'y_test': y_test,
+            'metadata': metadata,
+            'scaler_X': self.scaler_X,
+            'scaler_y': self.scaler_y
         }
 
 
