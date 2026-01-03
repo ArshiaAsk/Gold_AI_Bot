@@ -31,7 +31,7 @@ class GoldPricePredictor:
 
         # Load model and scaler
         self._load_model()
-        self.load_scaler()
+        self._load_scaler()
 
         logger.info("GoldPricePredictor initialize successfully")
 
