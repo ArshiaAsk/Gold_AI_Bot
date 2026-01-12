@@ -415,4 +415,157 @@ open http://localhost:8000/docs
 
 **Status:** ✅ Phase 1 Complete | 🚀 Ready for Phase 2 Deployment
 
-**Last Updated:** 2026-01-02
+---
+
+# 🚀 Gold Price Prediction API - User Guide
+
+## Quick Start
+
+### 1. Install Dependencies
+```bash
+pip install -r requirements-api.txt
+```
+
+### 2. Start the API Server
+
+```bash
+# Development
+cd src/api
+python main.py
+```
+
+# Or with uvicorn directly
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+
+### 3. Access API Documentation
+
+Open your browser:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## API Endpoints
+
+### 1. Health Check
+http
+GET /health
+
+**Response:**
+json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "timestamp": "2026-01-01T18:42:03"
+}
+
+### 2. Simple Prediction
+http
+POST /predict
+
+**Request Body:**
+json
+{
+  "features": [[...], [...], ...],  // 30x15 array
+  "current_price": 95000000
+}
+
+**Response:**
+json
+{
+  "success": true,
+  "prediction": {
+"current_price": 95000000,
+"predicted_price": 95500000,
+"price_change": 500000,
+"price_change_percent": 0.53,
+"predicted_log_return": 0.0052,
+"prediction_timestamp": "2026-01-01T18:42:03"
+  },
+  "timestamp": "2026-01-01T18:42:03"
+}
+
+### 3. Prediction with Confidence
+http
+POST /predict-with-confidence?n_simulations=100
+
+**Response includes 68% and 95% confidence intervals**
+
+### 4. Model Information
+http
+GET /model-info
+
+## Using the API
+
+### Python Client
+
+python
+import requests
+
+# Make prediction
+response = requests.post(
+"http://localhost:8000/predict",
+json={
+"features": features.tolist(),
+"current_price": 95000000
+}
+)
+
+result = response.json()
+print(f"Predicted Price: {result['prediction']['predicted_price']:,.0f}")
+
+### cURL
+
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+"features": [[...], ...],
+"current_price": 95000000
+  }'
+  
+```
+
+## Deployment
+
+### Docker
+
+```bash
+# Build image
+docker build -t gold-prediction-api .
+
+# Run container
+docker run -p 8000:8000 gold-prediction-api
+```
+
+### Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+## Next Steps
+
+ Phase 2 Complete: FastAPI Service  
+ Phase 3: Trading Bot  
+ Phase 4: Monitoring & MLOps  
+
+
+**To run it:**
+
+```bash
+# 1. Create the api directory
+mkdir -p src/api
+
+# 2. Copy the files to src/api/
+# - predictor.py
+# - main.py
+# - client_example.py
+
+# 3. Install API dependencies
+pip install fastapi uvicorn pydantic python-multipart
+
+# 4. Start the server
+cd src/api
+python main.py
+
+# Or
+uvicorn src.api.main:app --reload --port 8000
