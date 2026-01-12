@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  gold-prediction-api:
+    build: .
+    port: 
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro # Read-only model file
+      - ./logs:/app/logs
+    environment:
+      - LOG_LEVEL=INFO
+      - MODEL_PATH=/app/models/gold-lstm-v2.keras
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
