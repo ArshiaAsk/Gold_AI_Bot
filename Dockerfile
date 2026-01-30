@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-WORKDIR / app
+WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements_api.txt
 # Copy application code 
 COPY src/ ./src/
 COPY models/ ./models/
-COPY config/ ./config/
+#COPY config/ ./config/
 
 # Expose port 
 EXPOSE 8000
