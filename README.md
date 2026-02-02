@@ -18,56 +18,6 @@ A professional LSTM-based deep learning system for predicting Iranian gold price
 
 ---
 
-## 📁 Project Structure
-
-gold-price-prediction/
-├── data/
-│   ├── raw/
-│   │   └── advanced_gold_features.csv    # Original dataset (1,385 records)
-│   └── processed/
-│       ├── train_data.pkl
-│       ├── val_data.pkl
-│       └── test_data.pkl
-│
-├── models/
-│   ├── gold_lstm_v2.keras               # Trained model (33,441 parameters)
-│   ├── scaler_X.pkl                     # Feature scaler
-│   └── scaler_y.pkl                     # Target scaler
-│
-├── results/
-│   ├── training_history.png
-│   ├── predictions_vs_actual.png
-│   └── residuals_plot.png
-│
-├── logs/
-│   └── training_YYYYMMDD_HHMMSS.log
-│
-├── src/
-│   ├── config/
-│   │   └── config_settings.py           # Configuration dataclasses
-│   ├── data/
-│   │   └── data_preprocessor.py         # Data loading & preprocessing
-│   ├── models/
-│   │   └── model_builder.py             # LSTM architecture & training
-│   ├── evaluation/
-│   │   └── model_evaluator.py           # Metrics & visualization
-│   ├── pipeline/
-│   │   └── train_pipeline.py            # Complete training pipeline
-│   └── api/                              # ✨ NEW: Production API
-│       ├── main.py                       # FastAPI application
-│       ├── predictor.py                  # Prediction service
-│       └── client_example.py             # API usage examples
-│
-├── requirements.txt
-├── requirements-api.txt                  # ✨ API-specific dependencies
-├── Dockerfile                            # ✨ Docker containerization
-├── docker-compose.yml                    # ✨ Container orchestration
-├── README.md
-└── example_usage.py
-
-
----
-
 ## 📊 Dataset Information
 
 **File:** `advanced_gold_features.csv`
