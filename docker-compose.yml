@@ -3,7 +3,7 @@ version: '3.8'
 services:
   gold-prediction-api:
     build: .
-    port: 
+    ports: 
       - "8000:8000"
     volumes:
       - ./models:/app/models:ro # Read-only model file

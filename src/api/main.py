@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 
 # Import our custom modules
-from predictor import GoldPricePredictor, FeatureBuilder
+from .predictor import GoldPricePredictor, FeatureBuilder
 
 # Setup logging
 logging.basicConfig(
