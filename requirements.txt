@@ -28,3 +28,10 @@ httpx==0.25.1  # For testing
 
 # Optional but recommended
 prometheus-fastapi-instrumentator==6.1.0  # For monitoring
+
+# Performance & utilities
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# Optional (for future API integration)
+requests>=2.31.0
