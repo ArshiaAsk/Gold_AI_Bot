@@ -168,7 +168,7 @@ if __name__ == "__main__":
     """
     
     # Configuration
-    DATA_FILE = "../data/processed/advanced_gold_features.csv"
+    DATA_FILE = "/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/advanced_gold_features.csv"
     
     # Check if data file exists
     if not os.path.exists(DATA_FILE):
@@ -178,7 +178,7 @@ if __name__ == "__main__":
         
         # Create sample data file from the CSV content we know exists
         # This is a workaround since we need to create the data path
-        os.makedirs("/home/claude/trading_bot/data", exist_ok=True)
+        os.makedirs("/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/", exist_ok=True)
         
         # Let user know they need to provide the CSV
         print("\n" + "="*70)

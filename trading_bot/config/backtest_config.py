@@ -94,10 +94,10 @@ LOG_DAILY_PORTFOLIO = True  # Save daily portfolio value
 PLOT_RESULTS = True  # Generate performance plots
 SAVE_METRICS = True  # Save metrics to JSON
 
-OUTPUT_DIR = ".../outputs"
-TRADE_LOG_FILE = "../trade_log.csv"
-PORTFOLIO_LOG_FILE = "../portfolio_log.csv"
-METRICS_FILE = "../backtest_metrics.json"
+OUTPUT_DIR = "/home/arshiaask/projects/Gold_Usd_Oil_IRR/trading_bot/outputs"
+TRADE_LOG_FILE = "trade_log.csv"
+PORTFOLIO_LOG_FILE = "portfolio_log.csv"
+METRICS_FILE = "backtest_metrics.json"
 
 # ============================================================================
 # PREDICTION SETTINGS (for future API integration)

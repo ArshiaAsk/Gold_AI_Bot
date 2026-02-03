@@ -32,7 +32,7 @@ class BacktestVisualizer:
         self.signal_history = results['signal_history']
         self.metrics = results['metrics']
         
-    def plot_all(self, output_dir: str = "/home/claude/trading_bot/outputs/plots"):
+    def plot_all(self, output_dir: str = "/home/arshiaask/projects/Gold_Usd_Oil_IRR/trading_bot/outputs/plots"):
         """Generate all plots"""
         
         os.makedirs(output_dir, exist_ok=True)
