@@ -66,7 +66,7 @@ def check_data_files():
     """Check if historical data exists"""
     logger.info("\nChecking data files...")
     
-    csv_path = Path('../advanced_gold_features.csv')
+    csv_path = Path('../data/processed/advanced_gold_features.csv')
     
     if csv_path.exists():
         import pandas as pd

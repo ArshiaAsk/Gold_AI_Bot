@@ -5,7 +5,7 @@ import sys
 
 # Add root directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import CONF
+from config_settings import Config
 from src.utils import logger
 
 class FeatureEngineer:
