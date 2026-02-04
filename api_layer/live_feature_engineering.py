@@ -125,7 +125,7 @@ class LiveFeatureEngineer:
         
         try:
             # Option 1: Load from saved CSV (most reliable for now)
-            csv_path = '/home/claude/trading_bot/advanced_gold_features.csv'
+            csv_path = '/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/advanced_gold_features.csv'
             df = pd.read_csv(csv_path)
             df['Date'] = pd.to_datetime(df['Date'])
             df = df.sort_values('Date')

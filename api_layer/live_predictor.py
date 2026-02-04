@@ -1,39 +1,54 @@
-"""
-Live Prediction Module
-Loads trained XGBoost model and generates real-time predictions
-"""
+# api_layer/live_predictor.py (FIXED MODEL LOADING)
 
-import pickle
-import pandas as pd
-import numpy as np
+import sys
 from pathlib import Path
-import logging
-from typing import Dict, Optional, Tuple
-from datetime import datetime
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from api_config import MODEL_PATH, PIPELINE_PATH, FEATURE_SCALER_PATH
-from live_feature_engineering import LiveFeatureEngineer
+import json
+import logging
+import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+from typing import Optional, Dict
+
+# TensorFlow imports with proper error handling
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    print(f"TensorFlow version: {tf.__version__}")
+except ImportError as e:
+    print(f"TensorFlow import error: {e}")
+    tf = None
+    keras = None
+
+from api_layer.api_config import (
+    MODEL_PATH, SCALER_PATH, HISTORICAL_DATA_PATH,
+    FEATURE_COLUMNS, LOOKBACK_DAYS, CACHE_DIR
+)
 
 
 class LivePredictor:
     """
-    Loads trained model and generates predictions on new data
+    Real-time predictor using trained LSTM model
     """
     
     def __init__(self):
-        self.logger = self._setup_logger()
         self.model = None
         self.scaler = None
-        self.pipeline = None
-        self.feature_engineer = LiveFeatureEngineer()
+        self.feature_columns = FEATURE_COLUMNS
+        self.lookback = LOOKBACK_DAYS
+        self.logger = self._setup_logger()
         
+        # Load model and scaler
         self.load_model()
+        self.load_scaler()
     
     def _setup_logger(self):
         logger = logging.getLogger('LivePredictor')
         logger.setLevel(logging.INFO)
         
-        handler = logging.FileHandler('logs/predictions.log')
+        handler = logging.FileHandler(CACHE_DIR.parent / 'logs' / 'predictions.log')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -45,162 +60,300 @@ class LivePredictor:
         return logger
     
     def load_model(self):
-        """Load trained model and preprocessing objects"""
+        """
+        Load trained LSTM model with proper error handling
+        """
         self.logger.info("Loading trained model...")
         
+        if not MODEL_PATH.exists():
+            self.logger.error(f"Model file not found: {MODEL_PATH}")
+            return False
+        
         try:
-            # Try loading full pipeline first (preferred)
-            if PIPELINE_PATH.exists():
-                with open(PIPELINE_PATH, 'rb') as f:
-                    self.pipeline = pickle.load(f)
-                self.logger.info(f"✓ Loaded pipeline from {PIPELINE_PATH}")
-                return True
+            # Try loading with compile=False (safer)
+            self.model = keras.models.load_model(
+                str(MODEL_PATH),
+                compile=False
+            )
             
-            # Otherwise load model and scaler separately
-            if MODEL_PATH.exists():
-                with open(MODEL_PATH, 'rb') as f:
-                    self.model = pickle.load(f)
-                self.logger.info(f"✓ Loaded model from {MODEL_PATH}")
-            else:
-                self.logger.error(f"Model file not found: {MODEL_PATH}")
-                return False
+            # Manually compile if needed
+            self.model.compile(
+                optimizer='adam',
+                loss='mse',
+                metrics=['mae']
+            )
             
-            # Load scaler if exists
-            if FEATURE_SCALER_PATH.exists():
-                with open(FEATURE_SCALER_PATH, 'rb') as f:
-                    self.scaler = pickle.load(f)
-                self.logger.info(f"✓ Loaded scaler from {FEATURE_SCALER_PATH}")
-            else:
-                self.logger.warning("No scaler found - using raw features")
-            
+            self.logger.info(f"✓ Model loaded: {MODEL_PATH}")
+            self.logger.info(f"  Input shape: {self.model.input_shape}")
+            self.logger.info(f"  Output shape: {self.model.output_shape}")
             return True
             
         except Exception as e:
             self.logger.error(f"Failed to load model: {e}")
+            self.logger.info("Attempting alternative loading methods...")
+            
+            # Try alternative: Load weights only
+            try:
+                # Reconstruct model architecture (from your training code)
+                self.model = self._build_model_architecture()
+                self.model.load_weights(str(MODEL_PATH))
+                self.logger.info("✓ Model weights loaded successfully")
+                return True
+            except Exception as e2:
+                self.logger.error(f"Alternative loading also failed: {e2}")
+                return False
+    
+    def _build_model_architecture(self):
+        """
+        Rebuild LSTM model architecture (must match training exactly)
+        Based on your Phase 2 training code
+        """
+        from keras.models import Sequential
+        from keras.layers import LSTM, Dense, Dropout
+        
+        n_features = len(self.feature_columns)
+        
+        model = Sequential([
+            LSTM(128, return_sequences=True, input_shape=(self.lookback, n_features)),
+            Dropout(0.2),
+            LSTM(64, return_sequences=False),
+            Dropout(0.2),
+            Dense(32, activation='relu'),
+            Dense(1)  # Predicting next-day log return
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='mse',
+            metrics=['mae']
+        )
+        
+        return model
+    
+    def load_scaler(self):
+        """Load fitted scaler"""
+        if not SCALER_PATH.exists():
+            self.logger.warning(f"Scaler not found: {SCALER_PATH}")
+            self.logger.warning("Will use raw features (not recommended)")
+            return False
+        
+        try:
+            import joblib
+            self.scaler = joblib.load(SCALER_PATH)
+            self.logger.info(f"✓ Scaler loaded: {SCALER_PATH}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to load scaler: {e}")
             return False
     
-    def predict(self, features_df: pd.DataFrame) -> Optional[Tuple[float, float]]:
+    def get_historical_features(self, days: int = None) -> Optional[pd.DataFrame]:
         """
-        Generate prediction using loaded model
+        Load recent historical features for sequence building
         
         Args:
-            features_df: DataFrame with feature columns
-            
+            days: Number of days to load (default: LOOKBACK_DAYS)
+        
         Returns:
-            Tuple of (predicted_return, confidence) or None
+            DataFrame with features or None
         """
-        if self.pipeline is None and self.model is None:
-            self.logger.error("No model loaded")
+        if days is None:
+            days = self.lookback
+        
+        self.logger.info(f"Fetching {days} days of historical data...")
+        
+        if not HISTORICAL_DATA_PATH.exists():
+            self.logger.error(f"Historical data not found: {HISTORICAL_DATA_PATH}")
             return None
         
         try:
-            # Use pipeline if available
-            if self.pipeline:
-                prediction = self.pipeline.predict(features_df)[0]
+            df = pd.read_csv(HISTORICAL_DATA_PATH, parse_dates=['Date'])
+            df = df.sort_values('Date')
+            
+            # Get last N days
+            recent = df.tail(days).copy()
+            
+            # Ensure all feature columns exist
+            missing = set(self.feature_columns) - set(recent.columns)
+            if missing:
+                self.logger.error(f"Missing features: {missing}")
+                return None
+            
+            self.logger.info(f"✓ Loaded {len(recent)} historical records")
+            return recent[['Date'] + self.feature_columns]
+            
+        except Exception as e:
+            self.logger.error(f"Error loading historical data: {e}")
+            return None
+    
+    def prepare_sequence(self, features_df: pd.DataFrame) -> Optional[np.ndarray]:
+        """
+        Prepare feature sequence for LSTM input
+        
+        Args:
+            features_df: DataFrame with shape (lookback, n_features)
+        
+        Returns:
+            Array with shape (1, lookback, n_features) or None
+        """
+        try:
+            # Extract feature values
+            X = features_df[self.feature_columns].values
+            
+            # Check shape
+            if X.shape[0] != self.lookback:
+                self.logger.error(
+                    f"Wrong sequence length: expected {self.lookback}, got {X.shape[0]}"
+                )
+                return None
+            
+            # Scale features
+            if self.scaler is not None:
+                X_scaled = self.scaler.transform(X)
             else:
-                # Otherwise use model + scaler
-                if self.scaler:
-                    features_scaled = self.scaler.transform(features_df)
-                else:
-                    features_scaled = features_df.values
-                
-                prediction = self.model.predict(features_scaled)[0]
+                X_scaled = X  # Use raw features (not ideal)
             
-            # Calculate confidence (you can enhance this)
-            # For now, use absolute value as proxy for confidence
-            confidence = min(abs(prediction) / 0.05, 1.0)  # Scale to 0-1
+            # Reshape for LSTM: (1, lookback, n_features)
+            X_lstm = X_scaled.reshape(1, self.lookback, len(self.feature_columns))
             
-            self.logger.info(f"Prediction: {prediction:.4f} (confidence: {confidence:.2f})")
+            return X_lstm
             
-            return prediction, confidence
+        except Exception as e:
+            self.logger.error(f"Error preparing sequence: {e}")
+            return None
+    
+    def predict(self, features_df: pd.DataFrame) -> Optional[Dict]:
+        """
+        Make prediction on feature sequence
+        
+        Args:
+            features_df: Recent features (must have exactly lookback rows)
+        
+        Returns:
+            Dictionary with prediction results or None
+        """
+        if self.model is None:
+            self.logger.error("No model loaded")
+            return None
+        
+        # Prepare input sequence
+        X_lstm = self.prepare_sequence(features_df)
+        
+        if X_lstm is None:
+            return None
+        
+        try:
+            # Make prediction
+            pred_log_return = self.model.predict(X_lstm, verbose=0)[0, 0]
+            
+            # Convert to percentage
+            pred_return_pct = pred_log_return * 100
+            
+            # Get current price (from last row)
+            current_price = features_df['Gold_IRR'].iloc[-1] if 'Gold_IRR' in features_df.columns else None
+            
+            # Estimate confidence (you can improve this)
+            confidence = self._estimate_confidence(pred_log_return)
+            
+            result = {
+                'predicted_log_return': float(pred_log_return),
+                'predicted_return_pct': float(pred_return_pct),
+                'current_price': float(current_price) if current_price else None,
+                'confidence': float(confidence),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            self.logger.info(
+                f"Prediction: {pred_return_pct:+.2f}% "
+                f"(log: {pred_log_return:+.4f}) | "
+                f"Confidence: {confidence:.1%}"
+            )
+            
+            return result
             
         except Exception as e:
             self.logger.error(f"Prediction failed: {e}")
             return None
     
-    def predict_from_latest_prices(self, 
-                                   latest_prices: Dict[str, float]) -> Optional[Dict]:
+    def _estimate_confidence(self, pred_log_return: float) -> float:
         """
-        Complete prediction pipeline: prices → features → prediction
+        Estimate prediction confidence based on magnitude
+        Simple heuristic - you can improve this with ensemble/variance
+        """
+        abs_return = abs(pred_log_return)
         
-        Args:
-            latest_prices: Dict with Gold_IRR, USD_IRR, Ounce_USD, Oil_USD
-            
-        Returns:
-            Dict with prediction results and metadata
+        if abs_return > 0.02:  # > 2% move
+            return 0.85
+        elif abs_return > 0.01:  # 1-2%
+            return 0.75
+        elif abs_return > 0.005:  # 0.5-1%
+            return 0.65
+        else:  # < 0.5%
+            return 0.55
+    
+    def predict_from_latest_data(self) -> Optional[Dict]:
+        """
+        Full pipeline: load recent data and predict
         """
         self.logger.info("="*60)
         self.logger.info("Starting prediction pipeline...")
         
-        # Step 1: Compute features
-        features = self.feature_engineer.compute_features_for_latest(latest_prices)
+        # Get historical features
+        features_df = self.get_historical_features()
         
-        if features is None:
-            self.logger.error("Feature computation failed")
+        if features_df is None:
+            self.logger.error("Failed to get historical features")
             return None
         
-        # Step 2: Convert to DataFrame
-        features_df = self.feature_engineer.get_features_as_dataframe(features)
-        
-        # Step 3: Generate prediction
+        # Make prediction
         result = self.predict(features_df)
         
-        if result is None:
-            return None
+        if result:
+            # Cache the prediction
+            cache_file = CACHE_DIR / 'latest_prediction.json'
+            with open(cache_file, 'w') as f:
+                json.dump(result, f, indent=2)
+            self.logger.info(f"Cached prediction to {cache_file}")
         
-        predicted_return, confidence = result
-        
-        # Step 4: Calculate predicted price
-        current_price = latest_prices['Gold_IRR']
-        predicted_price = current_price * (1 + predicted_return)
-        
-        # Step 5: Compile results
-        prediction_result = {
-            'timestamp': datetime.now().isoformat(),
-            'current_price': current_price,
-            'predicted_return': predicted_return,
-            'predicted_return_pct': predicted_return * 100,
-            'predicted_price': predicted_price,
-            'price_change': predicted_price - current_price,
-            'confidence': confidence,
-            'features': {
-                'RSI_14': features['RSI_14'],
-                'MACD': features['MACD'],
-                'SMA_7': features['SMA_7'],
-                'SMA_30': features['SMA_30']
-            }
-        }
-        
-        self.logger.info(f"Current Price: {current_price:,.0f} IRR")
-        self.logger.info(f"Predicted Return: {predicted_return*100:.2f}%")
-        self.logger.info(f"Predicted Price: {predicted_price:,.0f} IRR")
         self.logger.info("="*60)
-        
-        return prediction_result
+        return result
 
 
-# ==================== TESTING ====================
+# ==================== TEST FUNCTION ====================
 
-if __name__ == "__main__":
-    import json
+def test_predictor():
+    """Test the predictor with historical data"""
+    print("\n" + "="*60)
+    print("TESTING LIVE PREDICTOR")
+    print("="*60)
     
     predictor = LivePredictor()
     
-    # Test with sample prices
-    test_prices = {
-        'Gold_IRR': 11500000.0,
-        'USD_IRR': 260000.0,
-        'Ounce_USD': 1850.0,
-        'Oil_USD': 68.5
-    }
+    if predictor.model is None:
+        print("\n✗ Model loading failed")
+        print("\nTroubleshooting:")
+        print("1. Check TensorFlow version:")
+        print("   pip show tensorflow")
+        print("2. Try reinstalling TensorFlow:")
+        print("   pip install --upgrade tensorflow")
+        print("3. Retrain model if version mismatch")
+        return False
     
-    result = predictor.predict_from_latest_prices(test_prices)
+    print("\n✓ Model loaded successfully")
+    
+    # Test prediction
+    result = predictor.predict_from_latest_data()
     
     if result:
-        print("\n" + "="*60)
-        print("PREDICTION RESULTS")
-        print("="*60)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-        print("="*60)
+        print("\n✓ Prediction successful:")
+        print(f"  Predicted Return: {result['predicted_return_pct']:+.2f}%")
+        print(f"  Confidence: {result['confidence']:.1%}")
+        if result['current_price']:
+            print(f"  Current Price: {result['current_price']:,.0f} IRR")
+        return True
     else:
-        print("Prediction failed")
+        print("\n✗ Prediction failed")
+        return False
+
+
+if __name__ == "__main__":
+    test_predictor()

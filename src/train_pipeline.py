@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Import custom modules
-from config_settings import config
+from config.settings import Config
 from data_preprocessor import DataPreprocessor
 from model_builder import LSTMModelBuilder, ModelTrainer
 from model_evaluator import ModelEvaluator, Visualizer
@@ -288,7 +288,7 @@ class TrainingPipeline:
 def main():
     """Main execution function"""
     # Initialize pipeline
-    pipeline = TrainingPipeline(config)
+    pipeline = TrainingPipeline(Config)
 
     # Run pipeline
     success = pipeline.run()

@@ -47,17 +47,17 @@ def check_model_files():
     """Check if trained model files exist"""
     logger.info("\nChecking model files...")
     
-    from api_config import MODEL_PATH, PIPELINE_PATH
+    from api_config import MODEL_PATH
     
-    if PIPELINE_PATH.exists():
-        logger.info(f"✓ Pipeline found: {PIPELINE_PATH}")
-        return True
-    elif MODEL_PATH.exists():
+    # if PIPELINE_PATH.exists():
+    #     logger.info(f"✓ Pipeline found: {PIPELINE_PATH}")
+        # return True
+    if MODEL_PATH.exists():
         logger.info(f"✓ Model found: {MODEL_PATH}")
         return True
     else:
         logger.error(f"✗ No model files found!")
-        logger.error(f"   Expected: {MODEL_PATH} or {PIPELINE_PATH}")
+        logger.error(f"   Expected: {MODEL_PATH}")
         logger.error(f"   Please run Phase 2 (model training) first")
         return False
 
@@ -66,7 +66,7 @@ def check_data_files():
     """Check if historical data exists"""
     logger.info("\nChecking data files...")
     
-    csv_path = Path('../data/processed/advanced_gold_features.csv')
+    csv_path = Path('/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/advanced_gold_features.csv')
     
     if csv_path.exists():
         import pandas as pd

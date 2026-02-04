@@ -5,7 +5,7 @@ import sys
 
 # Add root directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config_settings import Config
+from config.settings import Config
 from src.utils import logger
 
 class FeatureEngineer:
@@ -13,7 +13,7 @@ class FeatureEngineer:
         """
         Initialize the Feature Engineer.
         """
-        self.processed_dir = CONF.DATA_PROCESSED_DIR
+        self.processed_dir = Config.DATA_PROCESSED_DIR
 
     @staticmethod
     def calculate_rsi(series, period=14):
