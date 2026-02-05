@@ -165,7 +165,7 @@ def test_predictor():
         }
         
         logger.info("Generating prediction with mock prices...")
-        result = predictor.predict_from_latest_prices(mock_prices)
+        result = predictor.predict_from_latest_data(mock_prices)
         
         if result:
             logger.info("✓ Predictor successful!")
