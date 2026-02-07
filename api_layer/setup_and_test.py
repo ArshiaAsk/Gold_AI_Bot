@@ -162,10 +162,10 @@ def test_predictor():
             'USD_IRR': 260000.0,
             'Ounce_USD': 1850.0,
             'Oil_USD': 68.5
-        }
+        }    
         
         logger.info("Generating prediction with mock prices...")
-        result = predictor.predict_from_latest_data(mock_prices)
+        result = predictor.predict_from_latest_data()
         
         if result:
             logger.info("✓ Predictor successful!")

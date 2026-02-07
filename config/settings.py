@@ -36,7 +36,7 @@ class PathConfig:
     
     @property
     def scaler_path(self) -> str:
-        return os.path.join(self.MODELS_DIR, 'scaler.pkl')
+        return os.path.join(self.MODELS_DIR, 'scaler_X.pkl')
     
     @property
     def training_history_path(self) -> str:

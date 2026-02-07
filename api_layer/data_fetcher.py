@@ -158,16 +158,19 @@ class TGJUDataFetcher:
             # TGJU response structure: {'data': [{'Close': '...', ...}, ...]}
             if 'data' in response and len(response['data']) > 0:
                 latest_row = response['data'][0]  # First row is latest
-                price_str = latest_row.get('Close', None)
-                
+                price_str = latest_row[0] if latest_row else None
+
+
                 if price_str:
                     price = self.clean_value(price_str)
                     self.logger.info(f"{item_slug}: {price:,.0f}")
                     return price
-            
+                
+
         except (KeyError, ValueError, TypeError, IndexError) as e:
             self.logger.error(f"Error parsing {item_slug} price: {e}")
-        
+            self.logger.debug(type(response['data'][0]))
+
         return None
     
     def get_latest_gold_irr(self) -> Optional[float]:
