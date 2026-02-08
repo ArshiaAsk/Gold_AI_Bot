@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 import logging
+import json
 
 from data_fetcher import TGJUDataFetcher
 from api_config import LOOKBACK_DAYS, CACHE_DIR, LATEST_FEATURES_FILE
@@ -258,6 +259,21 @@ class LiveFeatureEngineer:
         
         return df
 
+    def get_cached_features(self) -> Optional[Dict]:
+        """Load cached prices (fallback when API fails)"""
+        if LATEST_FEATURES_FILE.exists():
+            with open(LATEST_FEATURES_FILE, 'r') as f:
+                prices = json.load(f)
+            
+            # Check if cache is recent (< 1 hour old)
+            cached_time = datetime.fromisoformat(prices['timestamp'])
+            if datetime.now() - cached_time < timedelta(hours=24):
+                self.logger.info("Using cached features")
+                return prices
+            else:
+                self.logger.warning("Cached features are stale")
+        
+                return None
 
 # ==================== TESTING ====================
 

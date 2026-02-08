@@ -266,13 +266,13 @@ class TGJUDataFetcher:
             
             # Check if cache is recent (< 1 hour old)
             cached_time = datetime.fromisoformat(prices['timestamp'])
-            if datetime.now() - cached_time < timedelta(hours=1):
+            if datetime.now() - cached_time < timedelta(hours=24):
                 self.logger.info("Using cached prices")
                 return prices
             else:
                 self.logger.warning("Cached prices are stale")
         
-        return None
+                return None
 
 
 # ==================== UTILITY FUNCTIONS ====================

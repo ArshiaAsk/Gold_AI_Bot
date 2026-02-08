@@ -19,6 +19,7 @@ from api_config import (
 )
 
 from data_fetcher import TGJUDataFetcher
+from live_feature_engineering import LiveFeatureEngineer
 from live_predictor import LivePredictor
 from live_signal_generator import LiveSignalGenerator, SignalType
 
@@ -35,6 +36,7 @@ class TradingBot:
         # Initialize components
         self.logger.info("Initializing Trading Bot...")
         self.data_fetcher = TGJUDataFetcher()
+        self.feature_engineering = LiveFeatureEngineer()
         self.predictor = LivePredictor()
         self.signal_generator = LiveSignalGenerator()
         
@@ -103,16 +105,20 @@ class TradingBot:
                     self.logger.error("✗ No cached data available - skipping cycle")
                     return None
             
-            # Step 2: Generate prediction
-            self.logger.info("🤖 Step 2/3: Generating ML prediction...")
-            prediction_result = self.predictor.predict_from_latest_prices(latest_prices)
+            # Step 2: Feature Engineering
+            self.logger.info("Step 2/4: Feature Engineering...")
+            features = self.feature_engineering.compute_features_for_latest(latest_prices)
+
+            # Step 3: Generate prediction
+            self.logger.info("🤖 Step 3/4: Generating ML prediction...")
+            prediction_result = self.predictor.predict_from_latest_data(latest_prices)
             
             if prediction_result is None:
                 self.logger.error("✗ Prediction failed - skipping cycle")
                 return None
             
-            # Step 3: Generate trading signal
-            self.logger.info("📊 Step 3/3: Generating trading signal...")
+            # Step 4: Generate trading signal
+            self.logger.info("📊 Step 4/4: Generating trading signal...")
             signal = self.signal_generator.generate_signal(prediction_result)
             
             # Log signal summary

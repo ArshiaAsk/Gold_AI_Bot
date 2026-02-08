@@ -15,13 +15,13 @@ from typing import Optional, Dict
 # TensorFlow imports with proper error handling
 try:
     import tensorflow as tf
-    from tensorflow import keras
+    import keras
     print(f"TensorFlow version: {tf.__version__}")
 except ImportError as e:
     print(f"TensorFlow import error: {e}")
     tf = None
     keras = None
-
+from live_feature_engineering import LiveFeatureEngineer
 from api_layer.api_config import (
     MODEL_PATH, SCALER_PATH, HISTORICAL_DATA_PATH,
     FEATURE_COLUMNS, LOOKBACK_DAYS, CACHE_DIR
@@ -34,6 +34,7 @@ class LivePredictor:
     """
     
     def __init__(self):
+        self.feature_engineering = LiveFeatureEngineer()
         self.model = None
         self.scaler = None
         self.feature_columns = FEATURE_COLUMNS
@@ -249,10 +250,13 @@ class LivePredictor:
             pred_return_pct = pred_log_return * 100
             
             # Get current price (from last row)
-            current_price = features_df['Gold_IRR'].iloc[-1] if 'Gold_IRR' in features_df.columns else None
+            features = self.feature_engineering.get_cached_features()
+            current_price = features['Gold_IRR']
+            # current_price = features_df['Gold_IRR'].iloc[-1] if 'Gold_IRR' in features_df.columns else None
             
             # Estimate confidence (you can improve this)
             confidence = self._estimate_confidence(pred_log_return)
+            
             
             result = {
                 'predicted_log_return': float(pred_log_return),
@@ -290,7 +294,7 @@ class LivePredictor:
         else:  # < 0.5%
             return 0.55
     
-    def predict_from_latest_data(self) -> Optional[Dict]:
+    def predict_from_latest_data(self, latest_prices) -> Optional[Dict]:
         """
         Full pipeline: load recent data and predict
         """
@@ -298,8 +302,9 @@ class LivePredictor:
         self.logger.info("Starting prediction pipeline...")
         
         # Get historical features
+        # features_df = self.get_historical_features()
         features_df = self.get_historical_features()
-        
+
         if features_df is None:
             self.logger.error("Failed to get historical features")
             return None
@@ -341,7 +346,15 @@ def test_predictor():
     print("\n✓ Model loaded successfully")
     
     # Test prediction
-    result = predictor.predict_from_latest_data()
+    latest_prices = {
+        "Gold_IRR": 192347000.0,
+        "USD_IRR": 1609350.0,
+        "Ounce_USD": 4951.2001953125,
+        "Oil_USD": 68.05000305175781,
+        "timestamp": "2026-02-07T14:54:23.055527"
+        }
+    
+    result = predictor.predict_from_latest_data(latest_prices)
     
     if result:
         print("\n✓ Prediction successful:")

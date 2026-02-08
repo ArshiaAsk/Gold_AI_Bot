@@ -9,6 +9,7 @@ from typing import Dict, Optional
 from datetime import datetime
 from enum import Enum
 
+from live_feature_engineering import LiveFeatureEngineer
 from api_config import (
     BUY_THRESHOLD, SELL_THRESHOLD, 
     RSI_OVERSOLD, RSI_OVERBOUGHT,
@@ -29,6 +30,7 @@ class LiveSignalGenerator:
     """
     
     def __init__(self):
+        self.feature_engineering = LiveFeatureEngineer()
         self.logger = self._setup_logger()
         self.signal_history = []
     
@@ -62,12 +64,14 @@ class LiveSignalGenerator:
         self.logger.info("Generating trading signal...")
         
         # Extract key values
-        predicted_return = prediction_result['predicted_return']
+        predicted_log_return = prediction_result['predicted_log_return']
+        predicted_return_pct = prediction_result['predicted_return_pct']
         confidence = prediction_result['confidence']
         current_price = prediction_result['current_price']
         
         # Extract technical indicators
-        features = prediction_result['features']
+        # features = prediction_result['features']
+        features = self.feature_engineering.get_cached_features() 
         rsi = features['RSI_14']
         macd = features['MACD']
         sma_7 = features['SMA_7']
@@ -77,8 +81,8 @@ class LiveSignalGenerator:
         signal = {
             'timestamp': datetime.now().isoformat(),
             'action': SignalType.HOLD.value,
-            'predicted_return': predicted_return,
-            'predicted_return_pct': predicted_return * 100,
+            'predicted_log_return': predicted_log_return,
+            'predicted_return_pct': predicted_return_pct * 100,
             'confidence': confidence,
             'current_price': current_price,
             'reasoning': [],
@@ -99,11 +103,11 @@ class LiveSignalGenerator:
             return signal
         
         # BUY Signal Logic
-        if predicted_return >= BUY_THRESHOLD:
+        if predicted_log_return >= BUY_THRESHOLD:
             buy_score = 0
             
             # Primary: Prediction is bullish
-            signal['reasoning'].append(f"Predicted return {predicted_return*100:.2f}% > threshold {BUY_THRESHOLD*100:.2f}%")
+            signal['reasoning'].append(f"Predicted return {predicted_log_return*100:.2f}% > threshold {BUY_THRESHOLD*100:.2f}%")
             buy_score += 3
             
             # Supporting: RSI not overbought
@@ -133,11 +137,11 @@ class LiveSignalGenerator:
                 self.logger.info(f"⚠️  HOLD - Buy signal not confirmed")
         
         # SELL Signal Logic
-        elif predicted_return <= SELL_THRESHOLD:
+        elif predicted_log_return <= SELL_THRESHOLD:
             sell_score = 0
             
             # Primary: Prediction is bearish
-            signal['reasoning'].append(f"Predicted return {predicted_return*100:.2f}% < threshold {SELL_THRESHOLD*100:.2f}%")
+            signal['reasoning'].append(f"Predicted return {predicted_log_return*100:.2f}% < threshold {SELL_THRESHOLD*100:.2f}%")
             sell_score += 3
             
             # Supporting: RSI not oversold
@@ -168,7 +172,7 @@ class LiveSignalGenerator:
         
         # HOLD Signal (no strong prediction)
         else:
-            signal['reasoning'].append(f"Predicted return {predicted_return*100:.2f}% in neutral zone")
+            signal['reasoning'].append(f"Predicted return {predicted_log_return*100:.2f}% in neutral zone")
             signal['strength'] = 0.0
             self.logger.info(f"⚪ HOLD Signal - Neutral prediction")
         
