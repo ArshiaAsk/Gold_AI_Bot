@@ -422,113 +422,6 @@ pydantic >= 2.5.0
 python-multipart >= 0.0.6
 
 
----
-
-## 🎯 Project Phases
-
-### ✅ Phase 1: Model Development (COMPLETE)
-- [x] Data preprocessing pipeline
-- [x] LSTM model architecture
-- [x] Training with callbacks (EarlyStopping, ReduceLROnPlateau)
-- [x] Evaluation metrics & visualization
-- [x] Model persistence (Keras format)
-- [x] Professional code structure
-
-**Status:** Production-ready model achieved with R² = 0.9938
-
----
-
-### ✅ Phase 2: Prediction API (COMPLETE)
-
-**Objective:** Build FastAPI service for real-time predictions
-
-**Delivered Components:**
-- [x] RESTful API endpoints (`/predict`, `/health`, `/model-info`)
-- [x] Request validation with Pydantic
-- [x] Model loading with lifespan context manager
-- [x] Confidence interval predictions (Monte Carlo)
-- [x] Docker containerization
-- [x] Interactive API documentation (Swagger/ReDoc)
-- [x] Client example code
-
-**Live API Metrics:**
-- Model Parameters: 33,441
-- Input Shape: (30, 15)
-- Prediction Accuracy: ±769K Toman (95% CI)
-- Response Time: <100ms
-
-**Status:** Production-ready API deployed and tested
-
----
-
-### 🚀 Phase 3: Trading Bot (STARTING NOW)
-
-**Objective:** Automated trading decision system based on predictions
-
-**Planned Components:**
-
-#### 1. **Signal Generation Module**
-- Buy/Sell/Hold signal generation based on predictions
-- Confidence-based signal strength
-- Multi-timeframe analysis support
-- Risk assessment integration
-
-#### 2. **Risk Management System**
-- Position sizing calculator
-- Stop-loss and take-profit automation
-- Maximum drawdown protection
-- Portfolio exposure limits
-- Risk/reward ratio analysis
-
-#### 3. **Backtesting Engine**
-- Historical performance simulation
-- Strategy optimization
-- Walk-forward analysis
-- Performance metrics (Sharpe, Sortino, Max DD)
-
-#### 4. **Trade Execution Simulator**
-- Order management system
-- Slippage and commission modeling
-- Partial fill simulation
-- Trade journal and logging
-
-#### 5. **Performance Tracking**
-- Real-time P&L monitoring
-- Trade statistics dashboard
-- Win rate and profit factor
-- Risk metrics visualization
-
-#### 6. **Alerting System**
-- Trading signal notifications
-- Risk threshold alerts
-- Performance milestone tracking
-- Email/SMS integration
-
-**Deliverables for Phase 3:**
-- `src/trading/signal_generator.py` - Trading signals from predictions
-- `src/trading/risk_manager.py` - Risk management logic
-- `src/trading/backtester.py` - Strategy backtesting
-- `src/trading/portfolio.py` - Portfolio management
-- `src/trading/bot.py` - Main trading bot orchestrator
-- Trading dashboard (web-based visualization)
-
----
-
-### 📋 Phase 4: MLOps & Monitoring (PLANNED)
-
-**Objective:** Production deployment infrastructure
-
-**Components:**
-- Model versioning (MLflow/DVC)
-- Performance monitoring
-- Data drift detection
-- Automated retraining pipeline
-- CI/CD integration
-- Alerting system
-- A/B testing framework
-
----
-
 ## 📊 Sample Predictions
 
 ### Example API Output
@@ -623,6 +516,267 @@ docker-compose down
 ```
 
 ---
+---
+
+## 🎯 Project Phases
+
+### ✅ Phase 1: Model Development (COMPLETE)
+- [x] Data preprocessing pipeline
+- [x] LSTM model architecture
+- [x] Training with callbacks (EarlyStopping, ReduceLROnPlateau)
+- [x] Evaluation metrics & visualization
+- [x] Model persistence (Keras format)
+- [x] Professional code structure
+
+**Status:** Production-ready model achieved with R² = 0.9938
+
+---
+
+### ✅ Phase 2: Prediction API (COMPLETE)
+
+**Objective:** Build FastAPI service for real-time predictions
+
+**Delivered Components:**
+- [x] RESTful API endpoints (`/predict`, `/health`, `/model-info`)
+- [x] Request validation with Pydantic
+- [x] Model loading with lifespan context manager
+- [x] Confidence interval predictions (Monte Carlo)
+- [x] Docker containerization
+- [x] Interactive API documentation (Swagger/ReDoc)
+- [x] Client example code
+
+**Live API Metrics:**
+- Model Parameters: 33,441
+- Input Shape: (30, 15)
+- Prediction Accuracy: ±769K Toman (95% CI)
+- Response Time: <100ms
+
+**Status:** Production-ready API deployed and tested
+
+---
+
+ I'll first examine your uploaded files to understand the current state of your trading bot, then provide the requested section as markdown code.Now let me provide you with the requested sections formatted as markdown code blocks:
+
+## 📊 Phase 3: Backtesting System
+
+###  Strategy Configuration
+
+```python
+# Edit trading_bot/config/backtest_config.py:
+
+INITIAL_CAPITAL = 1_000_000_000  # 1B IRR
+BUY_THRESHOLD = 0.008            # 0.8% predicted return
+SELL_THRESHOLD = -0.005          # -0.5% predicted return
+POSITION_SIZE = 0.3              # 30% of capital
+STOP_LOSS = 0.05                 # 5% stop loss
+TAKE_PROFIT = 0.15               # 15% take profit
+```
+
+### Run Backtest
+
+```bash
+cd trading_bot
+python main_backtest.py
+```
+
+### Results Analysis
+
+**Output Files:**
+- `outputs/backtest_metrics.json` - Performance summary
+- `outputs/trade_log.csv` - All executed trades
+- `outputs/portfolio_log.csv` - Daily portfolio values
+- `outputs/plots/` - Visualization charts
+
+**Key Metrics:**
+
+```json
+{
+  "total_return": "45.23%",
+  "sharpe_ratio": 1.85,
+  "max_drawdown": "-12.4%",
+  "win_rate": "62.5%",
+  "total_trades": 156,
+  "profitable_trades": 97
+}
+```
+
+**Visualization:**
+- Portfolio value over time
+- Drawdown analysis
+- Monthly returns heatmap
+- Trade distribution
+- Win/loss timeline
+
+---
+
+## 🤖 Phase 3.2: Live Trading Bot
+
+### 3 System Architecture
+
+┌─────────────────────────────────────────────────────┐
+│                  TRADING BOT CYCLE                  │
+└─────────────────────────────────────────────────────┘
+
+1. Data Fetcher (data_fetcher.py)
+   ↓
+   Fetches: Gold_IRR, USD_IRR, Ounce_USD, Oil_USD
+   ↓
+2. Feature Engineer (live_feature_engineering.py)
+   ↓
+   Computes: RSI, MACD, SMA, Bollinger Bands, etc.
+   ↓
+3. Predictor (live_predictor.py)
+   ↓
+   LSTM Model → Predicted Return + Confidence
+   ↓
+4. Signal Generator (live_signal_generator.py)
+   ↓
+   Decision: BUY / SELL / HOLD + Strength
+   ↓
+5. Execution (trading_bot.py)
+   ↓
+   Logs → Notifications → Next Cycle
+
+
+###  Configuration
+
+```python
+# Edit api_layer/api_config.py:
+
+# Trading Schedule
+SIGNAL_GENERATION_INTERVAL = 300  # 5 minutes
+MARKET_OPEN_HOUR = 8
+MARKET_OPEN_MINUTE = 30
+MARKET_CLOSE_HOUR = 16
+MARKET_CLOSE_MINUTE = 30
+TRADING_DAYS = [5, 6, 0, 1, 2]   # Sat-Wed
+
+# Safety Settings
+PAPER_TRADING_MODE = True         # MUST be True initially
+MIN_SIGNAL_CONFIDENCE = 0.6
+MAX_DAILY_TRADES = 5
+MAX_POSITION_SIZE = 0.5
+```
+
+###  Running the Bot
+
+**Single Cycle (Testing):**
+
+```bash
+cd api_layer
+python trading_bot.py --mode once
+```
+
+**Continuous Mode:**
+
+```bash
+python trading_bot.py --mode continuous --interval 300
+```
+
+**With Custom Settings:**
+
+```bash
+python trading_bot.py --mode continuous --interval 60 --no-market-check
+```
+
+###  Output Example
+
+======================================================================
+CYCLE #1 - 2026-02-08 14:26:50
+======================================================================
+
+📡 Step 1/4: Fetching latest prices...
+   ✓ Gold_IRR: 193,566,000
+   ✓ USD_IRR: 1,619,350
+   
+📊 Step 2/4: Feature Engineering...
+   ✓ Features computed successfully
+   
+🤖 Step 3/4: Generating ML prediction...
+   Prediction: +4.43% (log: +0.0443)
+   Confidence: 85.0%
+   
+📈 Step 4/4: Generating trading signal...
+
+╔══════════════════════════════════════════════╗
+║         TRADING SIGNAL SUMMARY               ║
+╚══════════════════════════════════════════════╝
+
+📊 Signal: BUY
+📈 Predicted Return: +4.43%
+🎯 Confidence: 85.00%
+💰 Current Price: 192,347,000 IRR
+
+Technical Indicators:
+  • RSI: 96.5
+  • MACD: 10,225,139
+  • Price vs SMA7: +32.85%
+  • Price vs SMA30: +53.32%
+
+Reasoning:
+  1. Predicted return 4.43% > threshold 0.80%
+  2. ⚠️  RSI 96.5 overbought - caution
+  3. Price above SMA7 (uptrend)
+  4. MACD 10,225,139 positive
+
+⚡ Action Strength: 71%
+
+✓ Cycle completed successfully
+
+
+### 3.5 Monitoring
+
+**View Live Dashboard:**
+
+```bash
+python api_layer/dashboard.py
+```
+
+**Check Logs:**
+
+```bash
+tail -f api_layer/logs/trading_bot.log
+tail -f api_layer/logs/signals.log
+```
+
+**Inspect Cache:**
+
+```bash
+cat api_layer/cache/latest_signal.json
+cat api_layer/cache/signal_history.jsonl
+```
+
+---
+
+## ⚠️ Disclaimer
+
+**This software is for educational purposes only.**
+
+- NOT financial advice
+- Past performance does not guarantee future results
+- Trading involves substantial risk of loss
+- Author assumes NO liability for financial losses
+- Use at your own risk
+- Consult a financial advisor before live trading
+
+---
+
+### 📋 Phase 4: MLOps & Monitoring (PLANNED)
+
+**Objective:** Production deployment infrastructure
+
+**Components:**
+- Model versioning (MLflow/DVC)
+- Performance monitoring
+- Data drift detection
+- Automated retraining pipeline
+- CI/CD integration
+- Alerting system
+- A/B testing framework
+
+---
+
+
 
 ## 🤝 Contributing
 
@@ -635,11 +789,6 @@ This is a professional ML project following best practices:
 - **Version Control:** Git with semantic versioning
 - **API Design:** RESTful conventions, OpenAPI 3.0 specs
 
----
-
-## 📝 License
-
-[Specify your license here]
 
 ---
 
@@ -649,24 +798,11 @@ This is a professional ML project following best practices:
 
 ---
 
-## 🎯 Next Steps: Phase 3 Trading Bot
+**Last Updated**: February 8, 2026 
 
-We're now ready to implement the automated trading system! The bot will:
+**Version**: 3.2.0  
 
-1. **Receive Predictions** from the API
-2. **Generate Trading Signals** (Buy/Sell/Hold)
-3. **Manage Risk** with position sizing and stop-losses
-4. **Backtest Strategies** on historical data
-5. **Track Performance** with comprehensive metrics
-6. **Send Alerts** for important trading events
-
-**Ready to start Phase 3?** Let's build the trading bot! 🚀
-
----
-
-**Project Status:** ✅ Phase 1 Complete | ✅ Phase 2 Complete | 🚀 Phase 3 Starting
-
-**Last Updated:** 2026-01-04 (Jalali: 1404/10/14)
+**Status**: ✅ Phase 3.2 Complete - Production Ready (Paper Trading)
 
 **Model Version:** gold_lstm_v2 (33,441 parameters)
 
