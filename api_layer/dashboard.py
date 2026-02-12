@@ -101,17 +101,17 @@ def display_dashboard():
         print(f"│ {emoji} Signal: {action:<20} │ Time: {signal_time.strftime('%H:%M:%S')} ({time_ago:.0f} min ago)" + " "*5 + "│")
         print(f"│ 💰 Price: {format_price(latest_signal['current_price']):<30} │" + " "*32 + "│")
         print(f"│ 📈 Predicted Return: {format_percent(latest_signal['predicted_return_pct']):<18} │" + " "*32 + "│")
-        print(f"│ 🎯 Confidence: {latest_signal['confidence']:.0%:<21} │" + " "*32 + "│")
+        print(f"│ 🎯 Confidence: {latest_signal['confidence']:<21.0%} │" + " "*32 + "│")
         
         if action != 'HOLD':
-            print(f"│ ⚡ Strength: {latest_signal.get('strength', 0):.0%:<23} │" + " "*32 + "│")
+            print(f"│ ⚡ Strength: {latest_signal.get('strength', 0):<23.0%} │" + " "*32 + "│")
         
         # Technical indicators
         tech = latest_signal.get('technical_indicators', {})
         if tech:
             print("│" + "─"*78 + "│")
             print("│ Technical Indicators:" + " "*57 + "│")
-            print(f"│   RSI: {tech.get('RSI_14', 0):.1f:<10} │ MACD: {tech.get('MACD', 0):,.0f:<25} │" + " "*20 + "│")
+            print(f"│   RSI: {tech.get('RSI_14', 0):<10.1f} │ MACD: {tech.get('MACD', 0):<25,.0f} │" + " "*20 + "│")
             print(f"│   Price vs SMA7: {format_percent(tech.get('price_vs_sma7', 0)):<15} │" + " "*36 + "│")
             print(f"│   Price vs SMA30: {format_percent(tech.get('price_vs_sma30', 0)):<15} │" + " "*36 + "│")
         
