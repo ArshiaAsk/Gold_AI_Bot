@@ -42,7 +42,8 @@ class MomentumSignalGenerator:
         """
         
         # Extract features
-        predicted_return = row.get('Target_Next_LogRet', 0.0)
+        # Never use target labels as signals in backtests (prevents look-ahead leakage)
+        predicted_return = row.get('Predicted_LogRet', 0.0)
         current_price = row['Gold_IRR']
         rsi = row.get('RSI_14', 50)
         sma_7 = row.get('SMA_7', current_price)
