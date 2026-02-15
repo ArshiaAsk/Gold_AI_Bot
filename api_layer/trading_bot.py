@@ -108,10 +108,16 @@ class TradingBot:
             # Step 2: Feature Engineering
             self.logger.info("Step 2/4: Feature Engineering...")
             features = self.feature_engineering.compute_features_for_latest(latest_prices)
+            if features is None:
+                self.logger.error("✗ Feature engineering failed - skipping cycle")
+                return None
 
             # Step 3: Generate prediction
             self.logger.info("🤖 Step 3/4: Generating ML prediction...")
-            prediction_result = self.predictor.predict_from_latest_data(latest_prices)
+            prediction_result = self.predictor.predict_from_latest_data(
+                latest_prices,
+                latest_features=features
+            )
             
             if prediction_result is None:
                 self.logger.error("✗ Prediction failed - skipping cycle")
