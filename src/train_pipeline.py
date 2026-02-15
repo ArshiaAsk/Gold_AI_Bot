@@ -86,8 +86,13 @@ class TrainingPipeline:
         )
 
         # Save scaler
-        scaler_X_path = self.config.paths.scaler_path.replace('.pkl', '_X.pkl')
-        scaler_y_path = self.config.paths.scaler_path.replace('.pkl', '_y.pkl')
+        # Keep artifact names stable: scaler_X.pkl and scaler_y.pkl
+        if self.config.paths.scaler_path.endswith('_X.pkl'):
+            scaler_X_path = self.config.paths.scaler_path
+            scaler_y_path = self.config.paths.scaler_path.replace('_X.pkl', '_y.pkl')
+        else:
+            scaler_X_path = self.config.paths.scaler_path.replace('.pkl', '_X.pkl')
+            scaler_y_path = self.config.paths.scaler_path.replace('.pkl', '_y.pkl')
         self.preprocessor.save_scalers(scaler_X_path, scaler_y_path)
 
         self.logger.info(f"✓ Data preparation completed")
@@ -161,7 +166,7 @@ class TrainingPipeline:
         with open(history_path, 'w') as f:
             # Convert numpy types to Python types for JSON serilization
             history_json = {k: [float(v) for v in vals] for k, vals in history_dict.items()}
-            json.dump(history_path, f, indent=4)
+            json.dump(history_json, f, indent=4)
 
         self.logger.info(f"✓ Training completed")
         self.logger.info(f"  - Total epochs: {len(history_dict['loss'])}")
@@ -288,7 +293,7 @@ class TrainingPipeline:
 def main():
     """Main execution function"""
     # Initialize pipeline
-    pipeline = TrainingPipeline(Config)
+    pipeline = TrainingPipeline(Config())
 
     # Run pipeline
     success = pipeline.run()
