@@ -7,6 +7,7 @@ import pandas as pd
 import sys
 import os
 from datetime import datetime
+from pathlib import Path
 
 # Add module to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -40,6 +41,25 @@ def load_data(file_path: str) -> pd.DataFrame:
     
     # Sort by date
     df = df.sort_values('Date').reset_index(drop=True)
+
+    # Prediction column required by strategy (and must be non-leaky)
+    if 'Predicted_LogRet' not in df.columns:
+        if cfg.USE_REAL_PREDICTIONS:
+            raise ValueError(
+                "USE_REAL_PREDICTIONS=True but 'Predicted_LogRet' is missing from dataset."
+            )
+        if 'Gold_LogRet' not in df.columns:
+            raise ValueError(
+                "Dataset must include either 'Predicted_LogRet' or 'Gold_LogRet' for fallback predictions."
+            )
+        # Non-leaky fallback: use only information available up to t to predict t+1
+        df['Predicted_LogRet'] = (
+            df['Gold_LogRet']
+            .rolling(window=5, min_periods=1)
+            .mean()
+            .shift(1)
+            .fillna(0.0)
+        )
     
     print(f"✅ Data loaded: {len(df)} rows")
     print(f"   Period: {df['Date'].iloc[0]} to {df['Date'].iloc[-1]}")
@@ -168,7 +188,8 @@ if __name__ == "__main__":
     """
     
     # Configuration
-    DATA_FILE = "/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/advanced_gold_features.csv"
+    project_root = Path(__file__).resolve().parent.parent
+    DATA_FILE = str(project_root / "data" / "processed" / "advanced_gold_features.csv")
     
     # Check if data file exists
     if not os.path.exists(DATA_FILE):
@@ -178,7 +199,7 @@ if __name__ == "__main__":
         
         # Create sample data file from the CSV content we know exists
         # This is a workaround since we need to create the data path
-        os.makedirs("/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/", exist_ok=True)
+        os.makedirs(str(project_root / "data" / "processed"), exist_ok=True)
         
         # Let user know they need to provide the CSV
         print("\n" + "="*70)
@@ -189,7 +210,7 @@ if __name__ == "__main__":
         print("  - Date column (required)")
         print("  - Gold_IRR (required)")
         print("  - Technical indicators (RSI_14, SMA_7, MACD, etc.)")
-        print("  - Target_Next_LogRet (for simulating predictions)")
+        print("  - Predicted_LogRet (or Gold_LogRet for fallback prediction generation)")
         print("\n" + "="*70)
         sys.exit(1)
     
