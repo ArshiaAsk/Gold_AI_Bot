@@ -135,8 +135,13 @@ class DataPreprocessor:
         Returns:
             Reshaped array of shape (samples, timesteps, features)
         """
+        if sequence_length <= 0:
+            raise ValueError("sequence_length must be > 0")
+        if len(X) < sequence_length:
+            return np.empty((0, sequence_length, X.shape[1]))
+
         X_3d = []
-        for i in range(len(X) - sequence_length):
+        for i in range(len(X) - sequence_length + 1):
             window = X[i: i + sequence_length]
             X_3d.append(window)
 
@@ -172,18 +177,19 @@ class DataPreprocessor:
         X_val = self.reshape_for_lstm(X_val, sequence_length)
         X_test = self.reshape_for_lstm(X_test, sequence_length)
 
-        y_train = y_train[sequence_length:]
-        y_val = y_val[sequence_length:]
-        y_test = y_test[sequence_length:]
+        # Align target with the end of each rolling feature window
+        y_train = y_train[sequence_length - 1:]
+        y_val = y_val[sequence_length - 1:]
+        y_test = y_test[sequence_length - 1:]
 
         # Store metadata for price reconstruction
         metadata = {
-            'train_dates': train_df['Date'].values if 'Date' in train_df.columns else None,
-            'val_dates': val_df['Date'].values if 'Date' in val_df.columns else None,
-            'test_dates': test_df['Date'].values if 'Date' in test_df.columns else None,
-            'train_prices': train_df['Gold_IRR'].values if 'Gold_IRR' in train_df.columns else None,
-            'val_prices': val_df['Gold_IRR'].values if 'Gold_IRR' in val_df.columns else None,
-            'test_prices': test_df['Gold_IRR'].values if 'Gold_IRR' in test_df.columns else None,
+            'train_dates': train_df['Date'].values[sequence_length - 1:] if 'Date' in train_df.columns else None,
+            'val_dates': val_df['Date'].values[sequence_length - 1:] if 'Date' in val_df.columns else None,
+            'test_dates': test_df['Date'].values[sequence_length - 1:] if 'Date' in test_df.columns else None,
+            'train_prices': train_df['Gold_IRR'].values[sequence_length - 1:] if 'Gold_IRR' in train_df.columns else None,
+            'val_prices': val_df['Gold_IRR'].values[sequence_length - 1:] if 'Gold_IRR' in val_df.columns else None,
+            'test_prices': test_df['Gold_IRR'].values[sequence_length - 1:] if 'Gold_IRR' in test_df.columns else None,
         }
 
         return {
