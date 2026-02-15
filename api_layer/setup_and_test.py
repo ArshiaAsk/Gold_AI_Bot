@@ -66,7 +66,8 @@ def check_data_files():
     """Check if historical data exists"""
     logger.info("\nChecking data files...")
     
-    csv_path = Path('/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/advanced_gold_features.csv')
+    from api_config import HISTORICAL_DATA_PATH
+    csv_path = HISTORICAL_DATA_PATH
     
     if csv_path.exists():
         import pandas as pd
@@ -165,7 +166,7 @@ def test_predictor():
         }    
         
         logger.info("Generating prediction with mock prices...")
-        result = predictor.predict_from_latest_data()
+        result = predictor.predict_from_latest_data(mock_prices)
         
         if result:
             logger.info("✓ Predictor successful!")

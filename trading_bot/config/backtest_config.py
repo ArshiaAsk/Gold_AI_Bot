@@ -3,6 +3,8 @@ Backtesting Configuration
 All parameters for the trading bot backtesting engine
 """
 
+from pathlib import Path
+
 # ============================================================================
 # CAPITAL & RISK MANAGEMENT
 # ============================================================================
@@ -94,7 +96,7 @@ LOG_DAILY_PORTFOLIO = True  # Save daily portfolio value
 PLOT_RESULTS = True  # Generate performance plots
 SAVE_METRICS = True  # Save metrics to JSON
 
-OUTPUT_DIR = "/home/arshiaask/projects/Gold_Usd_Oil_IRR/trading_bot/outputs"
+OUTPUT_DIR = str(Path(__file__).resolve().parent.parent / "outputs")
 TRADE_LOG_FILE = "trade_log.csv"
 PORTFOLIO_LOG_FILE = "portfolio_log.csv"
 METRICS_FILE = "backtest_metrics.json"

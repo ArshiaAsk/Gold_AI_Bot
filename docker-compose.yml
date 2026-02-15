@@ -10,7 +10,7 @@ services:
       - ./logs:/app/logs
     environment:
       - LOG_LEVEL=INFO
-      - MODEL_PATH=/app/models/gold-lstm-v2.keras
+      - MODEL_PATH=/app/models/gold_lstm_v2.keras
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

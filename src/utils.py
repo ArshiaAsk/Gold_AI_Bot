@@ -3,7 +3,7 @@ import os
 import sys
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config_settings import Config
+from config.settings import config
 
 def setup_logger(name="GoldBot"):
     """
@@ -13,12 +13,12 @@ def setup_logger(name="GoldBot"):
     logger.setLevel(logging.DEBUG)
 
     # Create logs folder if not exists
-    if not os.path.exists(CONF.LOGS_DIR):
-        os.makedirs(CONF.LOGS_DIR)
+    if not os.path.exists(config.paths.LOGS_DIR):
+        os.makedirs(config.paths.LOGS_DIR)
 
     # Define Log File Name (e.g., bot_2025-12-21.log)
     log_filename = f"bot_{datetime.now().strftime('%Y-%m-%d')}.log"
-    file_path = os.path.join(CONF.LOGS_DIR, log_filename)
+    file_path = os.path.join(config.paths.LOGS_DIR, log_filename)
 
     # File Handler
     file_handler = logging.FileHandler(file_path, encoding='utf-8')

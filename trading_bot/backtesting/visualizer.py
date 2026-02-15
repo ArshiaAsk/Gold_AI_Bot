@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Dict
 import os
+from pathlib import Path
 
 # Set style
 sns.set_style("darkgrid")
@@ -32,9 +33,10 @@ class BacktestVisualizer:
         self.signal_history = results['signal_history']
         self.metrics = results['metrics']
         
-    def plot_all(self, output_dir: str = "/home/arshiaask/projects/Gold_Usd_Oil_IRR/trading_bot/outputs/plots"):
+    def plot_all(self, output_dir: str = None):
         """Generate all plots"""
-        
+        if output_dir is None:
+            output_dir = str(Path(__file__).resolve().parent.parent / "outputs" / "plots")
         os.makedirs(output_dir, exist_ok=True)
         
         print("\n📊 Generating Plots...")

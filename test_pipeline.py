@@ -14,10 +14,10 @@ import sys
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from config_settings import config, DataConfig, ModelConfig
-from data_preprocessor import DataPreprocessor
-from model_builder import LSTMModelBuilder, ModelTrainer
-from model_evaluator import ModelEvaluator
+from config.settings import config, DataConfig, ModelConfig
+from src.data_preprocessor import DataPreprocessor
+from src.model_builder import LSTMModelBuilder, ModelTrainer
+from src.model_evaluator import ModelEvaluator
 
 
 class TestDataPreprocessor(unittest.TestCase):
@@ -120,7 +120,8 @@ class TestModelBuilder(unittest.TestCase):
             lstm_units_2=16,
             dense_units=8,
             dropout_rate=0.2,
-            learning_rate=0.001
+            learning_rate=0.001,
+            random_state=42
         )
     
     def test_build_model(self):
@@ -172,7 +173,14 @@ class TestModelTrainer(unittest.TestCase):
         self.y_val = np.random.randn(10, 1)
         
         # Build model
-        builder = LSTMModelBuilder(lstm_units_1=16, lstm_units_2=8)
+        builder = LSTMModelBuilder(
+            lstm_units_1=16,
+            lstm_units_2=8,
+            dense_units=8,
+            dropout_rate=0.2,
+            learning_rate=0.001,
+            random_state=42
+        )
         self.model = builder.build_model(input_shape=(1, 5))
         self.trainer = ModelTrainer(self.model)
     
@@ -266,8 +274,8 @@ class TestConfiguration(unittest.TestCase):
         """Test ModelConfig"""
         model_config = ModelConfig()
         
-        self.assertEqual(model_config.LSTM_UNITS_1, 128)
-        self.assertEqual(model_config.LEARNING_RATE, 0.0005)
+        self.assertEqual(model_config.LSTM_UNITS_1, 64)
+        self.assertEqual(model_config.LEARNING_RATE, 0.001)
         self.assertGreater(model_config.EPOCHS, 0)
         
         # Test config methods

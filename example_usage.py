@@ -10,7 +10,7 @@ import os
 # Add src to path if running from root directory
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from config_settings import config
+from config.settings import config
 from train_pipeline import TrainingPipeline
 
 
