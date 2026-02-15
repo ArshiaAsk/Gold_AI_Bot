@@ -52,11 +52,13 @@ class LivePredictor:
         handler = logging.FileHandler(CACHE_DIR.parent / 'logs' / 'predictions.log')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        if not logger.handlers:
+            logger.addHandler(handler)
         
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
-        logger.addHandler(console)
+        if len(logger.handlers) < 2:
+            logger.addHandler(console)
         
         return logger
     
@@ -112,14 +114,15 @@ class LivePredictor:
         from keras.models import Sequential
         from keras.layers import LSTM, Dense, Dropout
         
+        from config.settings import config as main_config
         n_features = len(self.feature_columns)
         
         model = Sequential([
-            LSTM(128, return_sequences=True, input_shape=(self.lookback, n_features)),
-            Dropout(0.2),
-            LSTM(64, return_sequences=False),
-            Dropout(0.2),
-            Dense(32, activation='relu'),
+            LSTM(main_config.model.LSTM_UNITS_1, return_sequences=True, input_shape=(self.lookback, n_features)),
+            Dropout(main_config.model.DROPOUT_RATE),
+            LSTM(main_config.model.LSTM_UNITS_2, return_sequences=False),
+            Dropout(main_config.model.DROPOUT_RATE),
+            Dense(main_config.model.DENSE_UNITS, activation='relu'),
             Dense(1)  # Predicting next-day log return
         ])
         
@@ -222,7 +225,7 @@ class LivePredictor:
             self.logger.error(f"Error preparing sequence: {e}")
             return None
     
-    def predict(self, features_df: pd.DataFrame) -> Optional[Dict]:
+    def predict(self, features_df: pd.DataFrame, current_price: float) -> Optional[Dict]:
         """
         Make prediction on feature sequence
         
@@ -249,11 +252,6 @@ class LivePredictor:
             # Convert to percentage
             pred_return_pct = pred_log_return * 100
             
-            # Get current price (from last row)
-            features = self.feature_engineering.get_cached_features()
-            current_price = features['Gold_IRR']
-            # current_price = features_df['Gold_IRR'].iloc[-1] if 'Gold_IRR' in features_df.columns else None
-            
             # Estimate confidence (you can improve this)
             confidence = self._estimate_confidence(pred_log_return)
             
@@ -261,7 +259,7 @@ class LivePredictor:
             result = {
                 'predicted_log_return': float(pred_log_return),
                 'predicted_return_pct': float(pred_return_pct),
-                'current_price': float(current_price) if current_price else None,
+                'current_price': float(current_price),
                 'confidence': float(confidence),
                 'timestamp': datetime.now().isoformat()
             }
@@ -294,23 +292,54 @@ class LivePredictor:
         else:  # < 0.5%
             return 0.55
     
-    def predict_from_latest_data(self, latest_prices) -> Optional[Dict]:
+    def _build_live_feature_sequence(
+        self,
+        latest_prices: Dict[str, float],
+        latest_features: Optional[Dict] = None
+    ) -> Optional[pd.DataFrame]:
+        """
+        Build lookback sequence by combining historical features with the latest live feature row.
+        """
+        history_days = self.lookback - 1
+        hist_df = self.get_historical_features(days=history_days)
+        if hist_df is None or len(hist_df) != history_days:
+            self.logger.error(
+                f"Insufficient historical rows for live sequence. "
+                f"Expected {history_days}, got {0 if hist_df is None else len(hist_df)}"
+            )
+            return None
+
+        if latest_features is None:
+            latest_features = self.feature_engineering.compute_features_for_latest(latest_prices)
+        if latest_features is None:
+            self.logger.error("Failed to compute latest live features")
+            return None
+
+        latest_row = {'Date': pd.Timestamp(datetime.now())}
+        for col in self.feature_columns:
+            latest_row[col] = latest_features.get(col, 0.0)
+
+        live_df = pd.concat([hist_df[['Date'] + self.feature_columns], pd.DataFrame([latest_row])], ignore_index=True)
+        return live_df
+
+    def predict_from_latest_data(self, latest_prices, latest_features: Optional[Dict] = None) -> Optional[Dict]:
         """
         Full pipeline: load recent data and predict
         """
         self.logger.info("="*60)
         self.logger.info("Starting prediction pipeline...")
         
-        # Get historical features
-        # features_df = self.get_historical_features()
-        features_df = self.get_historical_features()
+        if latest_prices is None:
+            self.logger.error("latest_prices is required")
+            return None
 
+        features_df = self._build_live_feature_sequence(latest_prices, latest_features=latest_features)
         if features_df is None:
-            self.logger.error("Failed to get historical features")
+            self.logger.error("Failed to build live feature sequence")
             return None
         
         # Make prediction
-        result = self.predict(features_df)
+        result = self.predict(features_df, current_price=float(latest_prices['Gold_IRR']))
         
         if result:
             # Cache the prediction
