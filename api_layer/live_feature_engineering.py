@@ -11,7 +11,13 @@ import logging
 import json
 
 from data_fetcher import TGJUDataFetcher
-from api_config import LOOKBACK_DAYS, CACHE_DIR, LATEST_FEATURES_FILE
+from api_config import (
+    LOOKBACK_DAYS,
+    LATEST_FEATURES_FILE,
+    HISTORICAL_DATA_PATH,
+    FEATURE_COLUMNS,
+    LOG_DIR,
+)
 
 
 class LiveFeatureEngineer:
@@ -23,28 +29,22 @@ class LiveFeatureEngineer:
     def __init__(self):
         self.fetcher = TGJUDataFetcher()
         self.logger = self._setup_logger()
-        self.feature_columns = [
-            'SMA_7', 'SMA_30', 'MACD', 'MACD_Signal', 'RSI_14',
-            'Bollinger_Upper', 'Bollinger_Lower',
-            'Gold_LogRet', 'USD_LogRet', 'Ounce_LogRet', 'Oil_LogRet',
-            'Gold_LogRet_Lag_1', 'USD_LogRet_Lag_1', 'Ounce_LogRet_Lag_1',
-            'Gold_LogRet_Lag_2', 'USD_LogRet_Lag_2', 'Ounce_LogRet_Lag_2',
-            'Gold_LogRet_Lag_3', 'USD_LogRet_Lag_3', 'Ounce_LogRet_Lag_3',
-            'Gold_LogRet_Lag_7', 'USD_LogRet_Lag_7', 'Ounce_LogRet_Lag_7'
-        ]
+        self.feature_columns = FEATURE_COLUMNS
     
     def _setup_logger(self):
         logger = logging.getLogger('LiveFeatureEngineer')
         logger.setLevel(logging.INFO)
         
-        handler = logging.FileHandler('logs/feature_engineering.log')
+        handler = logging.FileHandler(LOG_DIR / 'feature_engineering.log')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        if not logger.handlers:
+            logger.addHandler(handler)
         
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
-        logger.addHandler(console)
+        if len(logger.handlers) < 2:
+            logger.addHandler(console)
         
         return logger
     
@@ -125,9 +125,8 @@ class LiveFeatureEngineer:
         # In production, fetch from TGJU or use cached CSV
         
         try:
-            # Option 1: Load from saved CSV (most reliable for now)
-            csv_path = '/home/arshiaask/projects/Gold_Usd_Oil_IRR/data/processed/advanced_gold_features.csv'
-            df = pd.read_csv(csv_path)
+            # Load from processed feature store
+            df = pd.read_csv(HISTORICAL_DATA_PATH)
             df['Date'] = pd.to_datetime(df['Date'])
             df = df.sort_values('Date')
             
@@ -177,33 +176,21 @@ class LiveFeatureEngineer:
         for col in ['Gold_IRR', 'USD_IRR', 'Ounce_USD', 'Oil_USD']:
             df[f'{col}_LogRet'] = self.calculate_log_returns(df[col])
         
-        # Get the last row (latest data point)
-        latest_idx = len(df) - 1
-        
         # Calculate technical indicators using all historical data
         gold_prices = df['Gold_IRR']
         
         features = {
-            # Moving Averages
-            'SMA_7': self.calculate_sma(gold_prices, 7),
-            'SMA_30': self.calculate_sma(gold_prices, 30),
-            
-            # MACD
-            'MACD': 0.0,
-            'MACD_Signal': 0.0,
-            
-            # RSI
-            'RSI_14': self.calculate_rsi(gold_prices, 14),
-            
-            # Bollinger Bands
-            'Bollinger_Upper': 0.0,
-            'Bollinger_Lower': 0.0,
-            
-            # Log Returns
+            # Model features (must match training schema exactly)
             'Gold_LogRet': df['Gold_IRR_LogRet'].iloc[-1] if not pd.isna(df['Gold_IRR_LogRet'].iloc[-1]) else 0.0,
             'USD_LogRet': df['USD_IRR_LogRet'].iloc[-1] if not pd.isna(df['USD_IRR_LogRet'].iloc[-1]) else 0.0,
             'Ounce_LogRet': df['Ounce_USD_LogRet'].iloc[-1] if not pd.isna(df['Ounce_USD_LogRet'].iloc[-1]) else 0.0,
             'Oil_LogRet': df['Oil_USD_LogRet'].iloc[-1] if not pd.isna(df['Oil_USD_LogRet'].iloc[-1]) else 0.0,
+            'SMA_7': self.calculate_sma(gold_prices, 7),
+            'RSI_14': self.calculate_rsi(gold_prices, 14),
+            'MACD': 0.0,
+            'MACD_Signal': 0.0,
+            'Bollinger_Upper': 0.0,
+            'Bollinger_Lower': 0.0,
         }
         
         # Calculate MACD
@@ -213,21 +200,22 @@ class LiveFeatureEngineer:
         features['Bollinger_Upper'], features['Bollinger_Lower'] = \
             self.calculate_bollinger_bands(gold_prices)
         
-        # Lagged returns
-        for lag in [1, 2, 3, 7]:
-            for asset in ['Gold', 'USD', 'Ounce']:
-                lag_col = f'{asset}_LogRet_Lag_{lag}'
-                ret_col = f'{asset}_IRR_LogRet' if asset != 'Ounce' else 'Ounce_USD_LogRet'
-                
-                if lag < len(df):
-                    lag_val = df[ret_col].iloc[-(lag + 1)]
-                    features[lag_col] = lag_val if not pd.isna(lag_val) else 0.0
-                else:
-                    features[lag_col] = 0.0
+        for lag in [1, 2, 3]:
+            if lag < len(df):
+                gold_lag = df['Gold_IRR_LogRet'].iloc[-(lag + 1)]
+                usd_lag = df['USD_IRR_LogRet'].iloc[-(lag + 1)]
+                features[f'Gold_LogRet_Lag_{lag}'] = gold_lag if not pd.isna(gold_lag) else 0.0
+                if lag <= 2:
+                    features[f'USD_LogRet_Lag_{lag}'] = usd_lag if not pd.isna(usd_lag) else 0.0
+            else:
+                features[f'Gold_LogRet_Lag_{lag}'] = 0.0
+                if lag <= 2:
+                    features[f'USD_LogRet_Lag_{lag}'] = 0.0
         
         # Add metadata
         features['timestamp'] = datetime.now().isoformat()
         features['Gold_IRR'] = latest_prices['Gold_IRR']
+        features['SMA_30'] = self.calculate_sma(gold_prices, 30)
         
         self.logger.info("✓ Features computed successfully")
         
@@ -249,8 +237,7 @@ class LiveFeatureEngineer:
             Single-row DataFrame with correct column order
         """
         # Extract only the features used by model (not metadata)
-        model_features = {k: v for k, v in features.items() 
-                         if k in self.feature_columns}
+        model_features = {k: v for k, v in features.items() if k in self.feature_columns}
         
         df = pd.DataFrame([model_features])
         
