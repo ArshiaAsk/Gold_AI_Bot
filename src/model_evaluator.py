@@ -46,7 +46,7 @@ class ModelEvaluator:
         return predictions.flatten()
     
 
-    def caculate_metrics(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+    def calculate_metrics(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
         """
         Caculate evaluation metrics
 
@@ -68,6 +68,10 @@ class ModelEvaluator:
         logger.info(f"Metrics - RMSE: {metrics['rmse']:.6f}, MAE: {metrics['mae']:.6f}, R²: {metrics['r2']:.4f}")
 
         return metrics
+
+    # Backward-compatible alias for older callers
+    def caculate_metrics(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+        return self.calculate_metrics(y_true, y_pred)
     
 
     def reconstruct_prices(self,
@@ -116,10 +120,10 @@ class ModelEvaluator:
         actual_prices = self.reconstruct_prices(base_prices, actual_log_returns)
 
         # Caculate metrics on prices
-        metrics = self.caculate_metrics(actual_prices, predicted_prices)
+        metrics = self.calculate_metrics(actual_prices, predicted_prices)
 
         # Caculate metrics on log returns
-        log_return_metrics = self.caculate_metrics(actual_log_returns, pred_log_returns)
+        log_return_metrics = self.calculate_metrics(actual_log_returns, pred_log_returns)
         metrics['log_return_rmse'] = log_return_metrics['rmse']
         metrics['log_return_mae'] = log_return_metrics['mae']
 
