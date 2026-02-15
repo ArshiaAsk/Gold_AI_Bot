@@ -41,11 +41,13 @@ class LiveSignalGenerator:
         handler = logging.FileHandler('logs/signals.log')
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        if not logger.handlers:
+            logger.addHandler(handler)
         
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
-        logger.addHandler(console)
+        if len(logger.handlers) < 2:
+            logger.addHandler(console)
         
         return logger
     
@@ -72,17 +74,29 @@ class LiveSignalGenerator:
         # Extract technical indicators
         # features = prediction_result['features']
         features = self.feature_engineering.get_cached_features() 
+        if features is None:
+            self.logger.warning("No cached features available, defaulting to HOLD")
+            return {
+                'timestamp': datetime.now().isoformat(),
+                'action': SignalType.HOLD.value,
+                'predicted_log_return': predicted_log_return,
+                'predicted_return_pct': predicted_return_pct,
+                'confidence': confidence,
+                'current_price': current_price,
+                'reasoning': ['Missing technical indicators cache'],
+                'technical_indicators': {}
+            }
         rsi = features['RSI_14']
         macd = features['MACD']
         sma_7 = features['SMA_7']
-        sma_30 = features['SMA_30']
+        sma_30 = features.get('SMA_30', sma_7)
         
         # Initialize signal
         signal = {
             'timestamp': datetime.now().isoformat(),
             'action': SignalType.HOLD.value,
             'predicted_log_return': predicted_log_return,
-            'predicted_return_pct': predicted_return_pct * 100,
+            'predicted_return_pct': predicted_return_pct,
             'confidence': confidence,
             'current_price': current_price,
             'reasoning': [],
