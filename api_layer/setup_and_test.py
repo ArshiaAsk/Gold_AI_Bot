@@ -197,7 +197,7 @@ def test_signal_generator():
         mock_prediction = {
             'timestamp': datetime.now().isoformat(),
             'current_price': 11500000.0,
-            'predicted_return': 0.012,
+            'predicted_log_return': 0.012,
             'predicted_return_pct': 1.2,
             'predicted_price': 11638000.0,
             'confidence': 0.75,
