@@ -1,0 +1,9 @@
+name: CI/CD Pipeline
+on: [push, pull_request]
+jobs: 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/chckout@v3
+      - name: Run tests
+        run: pytest tests/ -v
