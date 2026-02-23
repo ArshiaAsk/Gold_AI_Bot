@@ -10,9 +10,16 @@ from pathlib import Path
 
 # Import custom modules
 from config.settings import Config
-from data_preprocessor import DataPreprocessor
-from model_builder import LSTMModelBuilder, ModelTrainer
-from model_evaluator import ModelEvaluator, Visualizer
+try:
+    # Package imports (used by src.mlops.*)
+    from src.data_preprocessor import DataPreprocessor
+    from src.model_builder import LSTMModelBuilder, ModelTrainer
+    from src.model_evaluator import ModelEvaluator, Visualizer
+except ImportError:
+    # Script-style imports (used when running this file directly)
+    from data_preprocessor import DataPreprocessor
+    from model_builder import LSTMModelBuilder, ModelTrainer
+    from model_evaluator import ModelEvaluator, Visualizer
 
 
 # Configure logging
