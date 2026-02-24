@@ -32,8 +32,11 @@ class MLOpsScheduler:
     def run_forever(self, poll_seconds: int = 60) -> None:
         self.configure()
         while True:
-            self._scheduler.run_pending()
+            self.run_pending_once()
             time.sleep(poll_seconds)
+
+    def run_pending_once(self) -> None:
+        self._scheduler.run_pending()
 
     def _run_daily_drift_check(self):
         if self.drift_detector is None:
