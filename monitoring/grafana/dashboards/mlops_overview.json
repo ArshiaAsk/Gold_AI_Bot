@@ -1,0 +1,45 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "title": "API Error Rate (5m)",
+      "type": "timeseries",
+      "targets": [{"expr": "increase(api_errors_total[5m])"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "title": "Prediction Latency p95", 
+      "type": "timeseries",
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "title": "Model RMSE",
+      "type": "timeseries",
+      "targets": [{"expr": "model_accuracy_rmse"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "title": "Model R2",
+      "type": "timeseries",
+      "targets": [{"expr": "model_accuracy_r2"}],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "title": "Drift Events",
+      "type": "timeseries",
+      "targets": [{"expr": "increase(model_drift_detected_total[1h])"}],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+    }
+  ],
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["mlops", "gold"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "title": "Gold MLOps Overview",
+  "timezone": "browser",
+  "version": 1
+}
