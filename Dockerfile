@@ -16,8 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code 
 COPY src/ ./src/
+COPY config/ ./config/
 COPY models/ ./models/
-#COPY config/ ./config/
+COPY data/ ./data/
 
 # Expose port 
 EXPOSE 8000

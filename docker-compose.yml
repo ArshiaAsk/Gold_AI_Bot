@@ -1,19 +1,96 @@
 version: '3.8'
 
 services:
-  gold-prediction-api:
-    build: .
-    ports: 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gold-api
+    ports:
       - "8000:8000"
     volumes:
-      - ./models:/app/models:ro # Read-only model file
+      - ./models:/app/models
       - ./logs:/app/logs
+      - ./data:/app/data
     environment:
       - LOG_LEVEL=INFO
-      - MODEL_PATH=/app/models/gold_lstm_v2.keras
+      - MLOPS_SCHEDULER_POLL_SECONDS=60
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mlops-net
+
+  mlops-worker:
+    build:
+      context: .
+      dockerfile: mlops.Dockerfile
+    container_name: gold-mlops-worker
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./data:/app/data
+    environment:
+      - LOG_LEVEL=INFO
+      - MLOPS_SCHEDULER_POLL_SECONDS=60
+      - PROMETHEUS_WORKER_PORT=8001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mlops-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gold-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    depends_on:
+      - api
+      - mlops-worker
+    networks:
+      - mlops-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gold-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - mlops-net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  mlops-net:
+    driver: bridge
