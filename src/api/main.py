@@ -3,7 +3,7 @@ FastAPI Application for Gold Price Prediction
 """
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field, validator
 from typing import Dict, Optional, List, Any
@@ -11,16 +11,25 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import logging
+import os
+import time
 from pathlib import Path
 
-# Import our custom modules
-from predictor import GoldPricePredictor, FeatureBuilder
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+from config.logging import setup_logging
+from src.mlops.api_integration import initialize_mlops
+from src.mlops.background_tasks import UptimeTracker
+
+try:
+    # Package imports
+    from src.api.predictor import GoldPricePredictor, FeatureBuilder
+except ImportError:
+    # Script-style import
+    from predictor import GoldPricePredictor, FeatureBuilder
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+setup_logging(base_log_dir="logs", level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 # --- Pydantic Schemas ---
@@ -85,6 +94,11 @@ model_artifacts = {
     "status": "startup"
 }
 
+mlops_artifacts = {
+    "integration": None,
+    "uptime_tracker": UptimeTracker(),
+}
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -102,11 +116,11 @@ async def lifespan(app: FastAPI):
         scaler_X_path = base_path / "models" / "scaler_X.pkl"
         scaler_y_path = base_path / "models" / "scaler_y.pkl"
 
-        logger.info(f"Looking for model at: {model_path}")
+        logger.info("Looking for model at: %s", model_path)
 
         # Check if files exist to give better error messages
         if not model_path.exists():
-            logger.warning(f"⚠️ Model file not found at {model_path}")
+            logger.warning("⚠️ Model file not found at %s", model_path)
             # We don't raise here, so the server can still start for debugging
         else:
             # Load predictor
@@ -123,9 +137,13 @@ async def lifespan(app: FastAPI):
             
             model_artifacts["status"] = "ready"
             logger.info("✅ Model and predictor loaded successfully")
+
+        integration = initialize_mlops()
+        mlops_artifacts["integration"] = integration
+        logger.info("✅ MLOps integration initialized")
             
     except Exception as e:
-        logger.error(f"❌ Critical error during startup: {e}")
+        logger.error("❌ Critical error during startup: %s", e)
         model_artifacts["status"] = "failed"
         # We purposely do NOT raise e, to keep the /health endpoint alive
 
@@ -133,6 +151,10 @@ async def lifespan(app: FastAPI):
 
     # Shutdown logic
     logger.info("🛑 Shutting down...")
+    integration = mlops_artifacts.get("integration")
+    if integration is not None:
+        integration.stop()
+    mlops_artifacts["integration"] = None
     model_artifacts.clear()
 
 
@@ -163,7 +185,10 @@ async def root():
         "message": "Gold Price Prediction API",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "metrics": "/metrics",
+        "mlops_health": "/mlops/health",
+        "mlops_registry": "/mlops/model-registry",
     }
 
 
@@ -192,11 +217,17 @@ async def predict_price(request: PredictionRequest):
         )
     
     try:
+        start = time.perf_counter()
         # Convert to numpy array
         features = np.array(request.features)
 
         # Make prediction
         result = predictor.predict_price(features, request.current_price)
+        latency = time.perf_counter() - start
+
+        integration = mlops_artifacts.get("integration")
+        if integration is not None:
+            integration.metrics_exporter.record_prediction(latency_seconds=latency, confidence=None)
 
         return PredictionResponse(
             success=True,
@@ -205,7 +236,11 @@ async def predict_price(request: PredictionRequest):
         )
     
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
+        logger.error("Prediction error: %s", e)
+        integration = mlops_artifacts.get("integration")
+        if integration is not None:
+            integration.metrics_exporter.record_api_error()
+        mlops_artifacts["uptime_tracker"].record_error()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Prediction Failed: {str(e)}"
@@ -229,6 +264,7 @@ async def predict_with_confidence(
         )
     
     try:
+        start = time.perf_counter()
         features = np.array(request.features)
 
         result = predictor.predict_with_confidence(
@@ -236,6 +272,11 @@ async def predict_with_confidence(
             request.current_price,
             n_simulations=n_simulations
         )
+        latency = time.perf_counter() - start
+
+        integration = mlops_artifacts.get("integration")
+        if integration is not None:
+            integration.metrics_exporter.record_prediction(latency_seconds=latency, confidence=None)
 
         return PredictionResponse(
             success=True,
@@ -244,7 +285,11 @@ async def predict_with_confidence(
         )
     
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
+        logger.error("Prediction error: %s", e)
+        integration = mlops_artifacts.get("integration")
+        if integration is not None:
+            integration.metrics_exporter.record_api_error()
+        mlops_artifacts["uptime_tracker"].record_error()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Prediction failed: {str(e)}"
@@ -266,6 +311,7 @@ async def predict_from_history(request: HistoricalDataRequest):
         )
     
     try:
+        start = time.perf_counter()
         # Convert to DataFrame
         df = pd.DataFrame(request.historical_data)
 
@@ -274,6 +320,11 @@ async def predict_from_history(request: HistoricalDataRequest):
 
         # Make Prediction
         result = predictor.predict_price(features, request.current_price)
+        latency = time.perf_counter() - start
+
+        integration = mlops_artifacts.get("integration")
+        if integration is not None:
+            integration.metrics_exporter.record_prediction(latency_seconds=latency, confidence=None)
 
         return PredictionResponse(
             success=True,
@@ -288,11 +339,49 @@ async def predict_from_history(request: HistoricalDataRequest):
             detail=str(ve)
         )
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
+        logger.error("Prediction error: %s", e)
+        integration = mlops_artifacts.get("integration")
+        if integration is not None:
+            integration.metrics_exporter.record_api_error()
+        mlops_artifacts["uptime_tracker"].record_error()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Prediction failed: {str(e)}"
         )
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    integration = mlops_artifacts.get("integration")
+    if integration is not None:
+        uptime = mlops_artifacts["uptime_tracker"].uptime_ratio()
+        integration.metrics_exporter.set_api_uptime_ratio(uptime)
+        payload = generate_latest(integration.metrics_exporter.registry)
+    else:
+        payload = generate_latest()
+    return Response(content=payload, media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get("/mlops/health")
+async def mlops_health():
+    """MLOps runtime health endpoint."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        return {"status": "degraded", "reason": "MLOps integration is not initialized"}
+    return integration.health()
+
+
+@app.get("/mlops/model-registry")
+async def mlops_model_registry(name: Optional[str] = None):
+    """List model versions in registry."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MLOps integration is not initialized",
+        )
+    return {"models": integration.list_registry(name=name)}
 
 
 @app.get("/model-info")
