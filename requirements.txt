@@ -41,4 +41,4 @@ mlflow==3.9.0
 evidently==0.4.20
 onnxruntime==1.24.2
 schedule==1.2.2
-prometheus_client
+prometheus-client>=0.16.0
