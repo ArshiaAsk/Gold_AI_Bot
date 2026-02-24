@@ -6,6 +6,37 @@ A professional LSTM-based deep learning system for predicting Iranian gold price
 
 **Current Status:** ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete | 🚀 Phase 4 MLOps Ready
 
+## ✅ Phase 4 MLOps (Completed)
+
+Implemented runtime MLOps orchestration includes:
+- FastAPI MLOps endpoints: `/metrics`, `/mlops/health`, `/mlops/model-registry`
+- Background scheduler worker for weekly retraining and daily drift checks
+- Filesystem model registry with rollback support
+- Prometheus metrics for latency, drift, API errors, and model quality
+- Multi-service Docker stack (`api`, `mlops-worker`, `prometheus`, `grafana`)
+- Centralized rotating logging and operator docs
+
+### Run Full MLOps Stack
+
+```bash
+docker-compose up --build -d
+```
+
+### Verify
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/mlops/health
+curl http://localhost:8000/metrics
+curl http://localhost:8001/metrics
+```
+
+### MLOps Docs
+
+- `docs/mlops_deployment.md`
+- `docs/mlops_configuration.md`
+- `docs/mlops_troubleshooting.md`
+
 ---
 
 ## 🎯 Project Goals
