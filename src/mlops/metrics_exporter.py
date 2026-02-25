@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -56,6 +57,12 @@ class MetricsExporter:
             "Service uptime ratio from 0 to 1",
             registry=self.registry,
         )
+        self.prediction_sla_violations = Counter(
+            "prediction_sla_violations_total",
+            "Prediction requests violating SLA latency threshold",
+            registry=self.registry,
+        )
+        self.prediction_sla_seconds = float(os.getenv("PREDICTION_SLA_SECONDS", "1.0"))
 
     def start_server(self, port: int = 8001) -> None:
         if self.started:
@@ -64,7 +71,10 @@ class MetricsExporter:
         self.started = True
 
     def record_prediction(self, latency_seconds: float, confidence: Optional[float] = None) -> None:
-        self.prediction_latency.observe(float(latency_seconds))
+        latency = float(latency_seconds)
+        self.prediction_latency.observe(latency)
+        if latency > self.prediction_sla_seconds:
+            self.prediction_sla_violations.inc()
         if confidence is not None:
             self.confidence_gauge.set(float(confidence))
 

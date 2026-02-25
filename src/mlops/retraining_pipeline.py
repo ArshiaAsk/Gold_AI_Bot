@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any, Dict, Optional
 
@@ -10,6 +11,7 @@ from src.mlops.alerting import Alerting
 from src.mlops.drift_detector import DriftDetector
 from src.mlops.experiment_tracker import ExperimentTracker
 from src.mlops.metrics_exporter import MetricsExporter
+from src.mlops.audit_store import AuditStore
 from src.mlops.model_registry import ModelRegistry
 from src.mlops.model_validator import ModelValidator
 from src.train_pipeline import TrainingPipeline
@@ -28,6 +30,7 @@ class AutoRetrainingPipeline:
         self.tracker = ExperimentTracker("gold_price_retraining")
         self.alerting = Alerting(service_name="gold-retraining")
         self.metrics_exporter = MetricsExporter()
+        self.audit_store = AuditStore(db_path=os.getenv("AUDIT_DB_PATH", "data/mlops_audit.db"))
         self.baseline_metrics = self._load_baseline_metrics()
 
     def _load_baseline_metrics(self) -> Dict[str, float]:
@@ -180,6 +183,24 @@ class AutoRetrainingPipeline:
             X_test=data.get("X_test") if data else None,
             y_test=data.get("y_test") if data else None,
         )
+
+        model_version = None
+        try:
+            production = self.registry.get_current_production_model()
+            model_version = production.get("version") if production else None
+        except Exception:
+            model_version = None
+
+        try:
+            self.audit_store.log_training_run(
+                status=status,
+                trigger="scheduler_or_manual",
+                reason=reason,
+                metrics=tagged_metrics,
+                model_version=model_version,
+            )
+        except Exception as exc:
+            logger.warning("Failed to persist retraining audit record: %s", exc)
 
     def _send_alert(self, message: str) -> None:
         self.alerting.send(
