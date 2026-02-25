@@ -1,6 +1,6 @@
 # Core ML Libraries
-tensorflow>=2.15.0
-keras>=3.0.0
+tensorflow==2.20.0
+keras<3.13
 numpy>=1.24.0
 pandas>=2.0.0
 scikit-learn>=1.3.0
@@ -13,10 +13,6 @@ seaborn>=0.12.0
 joblib>=1.3.0
 scipy>=1.11.0
 
-# Optional but recommended
-#jupyter>=1.0.0
-#notebook>=7.0.0
-
 # FastAPI and server
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -24,21 +20,19 @@ pydantic==2.5.0
 
 # API utilities
 python-multipart==0.0.6
-httpx==0.25.1  # For testing
+httpx==0.25.1
 
-# Optional but recommended
-prometheus-fastapi-instrumentator==6.1.0  # For monitoring
+# Monitoring
+prometheus-fastapi-instrumentator==6.1.0
+prometheus-client>=0.16.0
 
-# Performance & utilities
+# Time & requests
 python-dateutil>=2.8.0
 pytz>=2023.3
-
-# Optional (for future API integration)
 requests>=2.31.0
 
-# MLOps 
-mlflow==3.9.0
+# MLOps
+mlflow==2.12.1
 evidently==0.4.20
-onnxruntime==1.24.2
+onnxruntime==1.23.2
 schedule==1.2.2
-prometheus-client>=0.16.0
