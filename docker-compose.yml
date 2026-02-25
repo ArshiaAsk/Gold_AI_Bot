@@ -12,9 +12,19 @@ services:
       - ./models:/app/models
       - ./logs:/app/logs
       - ./data:/app/data
+    env_file:
+      - .env
     environment:
       - LOG_LEVEL=INFO
       - MLOPS_SCHEDULER_POLL_SECONDS=60
+      - CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8000
+      - API_KEY_REQUIRED=true
+      - API_KEY=${API_KEY:-change-this-api-key}
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_REQUESTS=120
+      - RATE_LIMIT_WINDOW_SECONDS=60
+      - AUDIT_DB_PATH=data/mlops_audit.db
+      - PREDICTION_SLA_SECONDS=1.0
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -35,10 +45,13 @@ services:
       - ./models:/app/models
       - ./logs:/app/logs
       - ./data:/app/data
+    env_file:
+      - .env
     environment:
       - LOG_LEVEL=INFO
       - MLOPS_SCHEDULER_POLL_SECONDS=60
       - PROMETHEUS_WORKER_PORT=8001
+      - AUDIT_DB_PATH=data/mlops_audit.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
