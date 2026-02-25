@@ -23,11 +23,19 @@ docker-compose up --build -d
 
 ```bash
 curl http://localhost:8000/health
-curl http://localhost:8000/mlops/health
+curl -H "X-API-Key: $API_KEY" http://localhost:8000/mlops/health
 curl http://localhost:8000/metrics
 curl http://localhost:8001/metrics
 curl http://localhost:9090/-/healthy
 ```
+
+If `API_KEY_REQUIRED=true`, use header `X-API-Key` for:
+- `/predict`
+- `/predict-with-confidence`
+- `/predict-from-history`
+- `/mlops/health`
+- `/mlops/model-registry`
+- `/model-info`
 
 Grafana:
 - URL: `http://localhost:3000`
