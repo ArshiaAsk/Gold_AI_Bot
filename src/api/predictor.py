@@ -4,7 +4,7 @@ FastAPI Prediction Service for Gold Price LSTM Model
 import numpy as np
 import pandas as pd
 import joblib
-from tensorflow import keras
+import keras
 from typing import Dict, List, Optional
 import logging
 from datetime import datetime
@@ -235,5 +235,11 @@ class FeatureBuilder:
 
         # Extract features
         features = recent_data[feature_columns].values
+        if not np.isfinite(features).all():
+            raise ValueError("Historical data contains NaN/Inf values in feature columns")
+
+        # Lightweight guardrail against obviously invalid values.
+        if np.max(np.abs(features)) > 1e9:
+            raise ValueError("Historical feature values are out of expected numeric bounds")
 
         return features
