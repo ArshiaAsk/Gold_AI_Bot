@@ -15,6 +15,10 @@ Implemented runtime MLOps orchestration includes:
 - Prometheus metrics for latency, drift, API errors, and model quality
 - Multi-service Docker stack (`api`, `mlops-worker`, `prometheus`, `grafana`)
 - Centralized rotating logging and operator docs
+- API key auth (`X-API-Key`) + in-memory rate limiting for production endpoints
+- SQLite audit persistence for predictions, training runs, and API events
+- Extended health checks: disk, memory, model freshness, audit DB connectivity
+- Alert channel hooks for Slack / Telegram / SMTP email
 
 ### Run Full MLOps Stack
 
@@ -26,10 +30,21 @@ docker-compose up --build -d
 
 ```bash
 curl http://localhost:8000/health
-curl http://localhost:8000/mlops/health
+curl -H "X-API-Key: $API_KEY" http://localhost:8000/mlops/health
 curl http://localhost:8000/metrics
 curl http://localhost:8001/metrics
 ```
+
+### Phase 4 Runtime Flow (End-to-End)
+
+1. API starts and loads model artifacts, MLOps integration, scheduler thread, and audit DB.
+2. Requests to `/predict*` and `/mlops/*` pass API-key auth + rate limiting.
+3. Prediction latency, API errors, uptime ratio, and drift events are exported to Prometheus.
+4. Every day drift checks run; every week retraining runs through validation gates.
+5. If validation + promotion gates pass, model registry promotes a new production version.
+6. Every prediction and retraining run is persisted to SQLite audit tables.
+7. If failures happen, alerting emits logs and optional Slack/Telegram/SMTP notifications.
+8. Operators monitor Grafana dashboards and can rollback via model registry metadata.
 
 ### MLOps Docs
 
@@ -251,7 +266,7 @@ POST /predict-with-confidence?n_simulations=100
 
 #### 6. Predict from Historical Data
 ```http
-POST /predict-from-historical
+POST /predict-from-history
 ```
 **Request Body:**
 ```json
