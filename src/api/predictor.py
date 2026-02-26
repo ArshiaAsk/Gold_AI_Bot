@@ -39,7 +39,27 @@ class GoldPricePredictor:
     def _load_model(self):
         """Load trained Keras model"""
         try:
-            self.model = keras.models.load_model(self.model_path)
+            # Try standard loading first
+            try:
+                self.model = keras.models.load_model(self.model_path)
+            except Exception as first_error:
+                # Keras 3.x compatibility issue - filter out quantization_config errors
+                logger.warning(f"Standard load failed: {first_error}. Attempting with custom objects...")
+                
+                # Define custom objects to handle compatibility issues
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore')
+                    
+                    # Try with compile=False to avoid certain configs
+                    self.model = keras.models.load_model(self.model_path, compile=False)
+                    # Recompile with safe defaults
+                    self.model.compile(
+                        optimizer='adam',
+                        loss='mse',
+                        metrics=['mae']
+                    )
+            
             logger.info(f"Model loaded from {self.model_path}")
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
