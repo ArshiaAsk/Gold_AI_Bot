@@ -1,45 +1,207 @@
 {
-  "annotations": {"list": []},
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "graphTooltip": 0,
   "panels": [
     {
-      "title": "API Error Rate (5m)",
+      "title": "API Target Health (5m avg)",
       "type": "timeseries",
-      "targets": [{"expr": "increase(api_errors_total[5m])"}],
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "avg_over_time(up{job=\"gold-api\"}[5m])",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      }
     },
     {
-      "title": "Prediction Latency p95", 
+      "title": "Worker Target Health (5m avg)",
       "type": "timeseries",
-      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))"}],
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "avg_over_time(up{job=\"gold-mlops-worker\"}[5m])",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      }
+    },
+    {
+      "title": "Prediction Request Rate (5m)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(prediction_latency_seconds_count[5m])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      }
+    },
+    {
+      "title": "API Error Count Increase (5m)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(api_errors_total[5m])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "title": "Prediction Latency p95 (5m)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le)) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
     },
     {
       "title": "Model RMSE",
       "type": "timeseries",
-      "targets": [{"expr": "model_accuracy_rmse"}],
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "model_accuracy_rmse or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
     },
     {
       "title": "Model R2",
       "type": "timeseries",
-      "targets": [{"expr": "model_accuracy_r2"}],
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "model_accuracy_r2 or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      }
     },
     {
-      "title": "Drift Events",
+      "title": "Drift Events Increase (1h)",
       "type": "timeseries",
-      "targets": [{"expr": "increase(model_drift_detected_total[1h])"}],
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(model_drift_detected_total[1h])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      }
+    },
+    {
+      "title": "Trading Signals by Action (1h)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(trading_signals_total[1h])) by (action) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      }
     }
   ],
   "schemaVersion": 39,
   "style": "dark",
-  "tags": ["mlops", "gold"],
-  "templating": {"list": []},
-  "time": {"from": "now-24h", "to": "now"},
+  "tags": [
+    "mlops",
+    "gold"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "30s",
   "title": "Gold MLOps Overview",
   "timezone": "browser",
-  "version": 1
+  "uid": "gold-mlops-overview",
+  "version": 2
 }
