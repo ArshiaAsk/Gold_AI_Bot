@@ -9,12 +9,20 @@ from typing import Dict, Optional
 from datetime import datetime
 from enum import Enum
 
-from live_feature_engineering import LiveFeatureEngineer
-from api_config import (
-    BUY_THRESHOLD, SELL_THRESHOLD, 
-    RSI_OVERSOLD, RSI_OVERBOUGHT,
-    MIN_SIGNAL_CONFIDENCE
-)
+try:
+    from api_layer.live_feature_engineering import LiveFeatureEngineer
+    from api_layer.api_config import (
+        BUY_THRESHOLD, SELL_THRESHOLD,
+        RSI_OVERSOLD, RSI_OVERBOUGHT,
+        MIN_SIGNAL_CONFIDENCE
+    )
+except ImportError:  # pragma: no cover - fallback for script-style execution
+    from live_feature_engineering import LiveFeatureEngineer
+    from api_config import (
+        BUY_THRESHOLD, SELL_THRESHOLD,
+        RSI_OVERSOLD, RSI_OVERBOUGHT,
+        MIN_SIGNAL_CONFIDENCE
+    )
 
 
 class SignalType(Enum):

@@ -10,18 +10,31 @@ from datetime import datetime, time as dt_time
 from pathlib import Path
 from typing import Optional
 
-from api_config import (
-    PRICE_UPDATE_INTERVAL, SIGNAL_GENERATION_INTERVAL,
-    MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE,
-    MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE,
-    TRADING_DAYS, CACHE_DIR, LATEST_SIGNAL_FILE,
-    ENABLE_NOTIFICATIONS, PAPER_TRADING_MODE
-)
+try:
+    from api_layer.api_config import (
+        PRICE_UPDATE_INTERVAL, SIGNAL_GENERATION_INTERVAL,
+        MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE,
+        MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE,
+        TRADING_DAYS, CACHE_DIR, LATEST_SIGNAL_FILE,
+        ENABLE_NOTIFICATIONS, PAPER_TRADING_MODE
+    )
+    from api_layer.data_fetcher import TGJUDataFetcher
+    from api_layer.live_feature_engineering import LiveFeatureEngineer
+    from api_layer.live_predictor import LivePredictor
+    from api_layer.live_signal_generator import LiveSignalGenerator, SignalType
+except ImportError:  # pragma: no cover - fallback for script-style execution
+    from api_config import (
+        PRICE_UPDATE_INTERVAL, SIGNAL_GENERATION_INTERVAL,
+        MARKET_OPEN_HOUR, MARKET_OPEN_MINUTE,
+        MARKET_CLOSE_HOUR, MARKET_CLOSE_MINUTE,
+        TRADING_DAYS, CACHE_DIR, LATEST_SIGNAL_FILE,
+        ENABLE_NOTIFICATIONS, PAPER_TRADING_MODE
+    )
 
-from data_fetcher import TGJUDataFetcher
-from live_feature_engineering import LiveFeatureEngineer
-from live_predictor import LivePredictor
-from live_signal_generator import LiveSignalGenerator, SignalType
+    from data_fetcher import TGJUDataFetcher
+    from live_feature_engineering import LiveFeatureEngineer
+    from live_predictor import LivePredictor
+    from live_signal_generator import LiveSignalGenerator, SignalType
 
 
 class TradingBot:

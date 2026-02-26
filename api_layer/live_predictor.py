@@ -21,11 +21,18 @@ except ImportError as e:
     print(f"TensorFlow import error: {e}")
     tf = None
     keras = None
-from live_feature_engineering import LiveFeatureEngineer
-from api_layer.api_config import (
-    MODEL_PATH, SCALER_PATH, HISTORICAL_DATA_PATH,
-    FEATURE_COLUMNS, LOOKBACK_DAYS, CACHE_DIR
-)
+try:
+    from api_layer.live_feature_engineering import LiveFeatureEngineer
+    from api_layer.api_config import (
+        MODEL_PATH, SCALER_PATH, HISTORICAL_DATA_PATH,
+        FEATURE_COLUMNS, LOOKBACK_DAYS, CACHE_DIR
+    )
+except ImportError:  # pragma: no cover - fallback for script-style execution
+    from live_feature_engineering import LiveFeatureEngineer
+    from api_config import (
+        MODEL_PATH, SCALER_PATH, HISTORICAL_DATA_PATH,
+        FEATURE_COLUMNS, LOOKBACK_DAYS, CACHE_DIR
+    )
 
 
 class LivePredictor:

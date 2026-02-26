@@ -10,14 +10,24 @@ from typing import Dict, Optional
 import logging
 import json
 
-from data_fetcher import TGJUDataFetcher
-from api_config import (
-    LOOKBACK_DAYS,
-    LATEST_FEATURES_FILE,
-    HISTORICAL_DATA_PATH,
-    FEATURE_COLUMNS,
-    LOG_DIR,
-)
+try:
+    from api_layer.data_fetcher import TGJUDataFetcher
+    from api_layer.api_config import (
+        LOOKBACK_DAYS,
+        LATEST_FEATURES_FILE,
+        HISTORICAL_DATA_PATH,
+        FEATURE_COLUMNS,
+        LOG_DIR,
+    )
+except ImportError:  # pragma: no cover - fallback for script-style execution
+    from data_fetcher import TGJUDataFetcher
+    from api_config import (
+        LOOKBACK_DAYS,
+        LATEST_FEATURES_FILE,
+        HISTORICAL_DATA_PATH,
+        FEATURE_COLUMNS,
+        LOG_DIR,
+    )
 
 
 class LiveFeatureEngineer:

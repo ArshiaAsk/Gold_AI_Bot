@@ -9,7 +9,10 @@ from datetime import datetime
 from pathlib import Path
 import os
 
-from api_config import LATEST_SIGNAL_FILE, CACHE_DIR
+try:
+    from api_layer.api_config import LATEST_SIGNAL_FILE, CACHE_DIR
+except ImportError:  # pragma: no cover - fallback for script-style execution
+    from api_config import LATEST_SIGNAL_FILE, CACHE_DIR
 
 
 def clear_screen():
