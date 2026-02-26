@@ -1,5 +1,13 @@
-def test_generate_signal():
-    mock_prediction = {'predicted_log_return': 0.05}
-    generator = SignalGenerator()  # Assuming SignalGenerator is the class containing generate_signal
-    signal = generator.generate_signal(mock_prediction)
-    assert signal is not None  # Adjust the assertion based on expected signal output
+from api_layer.data_fetcher import TGJUDataFetcher
+
+
+def test_clean_value_handles_strings_and_markup():
+    assert TGJUDataFetcher.clean_value("1,234,567") == 1234567.0
+    assert TGJUDataFetcher.clean_value("<span>12.5%</span>") == 12.5
+    assert TGJUDataFetcher.clean_value("not-a-number") == 0.0
+
+
+def test_clean_value_handles_null_and_numeric():
+    assert TGJUDataFetcher.clean_value(None) == 0.0
+    assert TGJUDataFetcher.clean_value(42) == 42.0
+    assert TGJUDataFetcher.clean_value(3.14) == 3.14
