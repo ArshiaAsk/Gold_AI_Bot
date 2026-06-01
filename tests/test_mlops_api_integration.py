@@ -14,6 +14,9 @@ class DummyRegistry:
     def get_current_production_model(self):
         return {"name": "gold_lstm", "version": 1, "timestamp": "20260223T000000Z"}
 
+    def get_canary_model(self):
+        return None
+
     def list_all(self, name=None):
         if name is None:
             return list(self.models)

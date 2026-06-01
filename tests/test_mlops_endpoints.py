@@ -4,9 +4,25 @@ from src.api.main import metrics, mlops_artifacts, mlops_health, mlops_model_reg
 from src.mlops.metrics_exporter import MetricsExporter
 
 
+class DummyPhase5:
+    def status(self):
+        return {"experiment_tracking": {"enabled": False}, "ab_testing": {"enabled": False}}
+
+    def list_experiments(self, max_results=10):
+        return []
+
+    def generate_model_card(self, version=None, name="gold_lstm"):
+        return {"version": version or 1, "model_name": name}
+
+    def list_model_cards(self):
+        return []
+
+
 class DummyIntegration:
     def __init__(self):
         self.metrics_exporter = MetricsExporter()
+        self.phase5 = DummyPhase5()
+        self.pipeline = type("Pipeline", (), {"registry": None, "baseline_metrics": {}})()
 
     def health(self):
         return {
@@ -15,6 +31,8 @@ class DummyIntegration:
             "drift_last_report": None,
             "baseline_metrics": {"rmse": 1.0, "r2": 0.9, "mape": 1.0},
             "production_model": {"name": "gold_lstm", "version": 1, "timestamp": "20260223T000000Z"},
+            "canary_model": None,
+            "phase5": self.phase5.status(),
         }
 
     def list_registry(self, name=None):
