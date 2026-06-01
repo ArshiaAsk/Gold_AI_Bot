@@ -2,9 +2,10 @@
 
 ## Services
 
-Phase 4 deployment runs 4 services:
+Phase 4 + Phase 5 deployment runs 5 services:
 - `api` (`:8000`) FastAPI prediction service with MLOps endpoints
 - `mlops-worker` (`:8001`) scheduler + retraining worker with metrics server
+- `mlflow` (`:5000`) experiment tracking UI and backend
 - `prometheus` (`:9090`) metrics storage/scraping
 - `grafana` (`:3000`) monitoring dashboards
 
@@ -27,7 +28,22 @@ curl -H "X-API-Key: $API_KEY" http://localhost:8000/mlops/health
 curl http://localhost:8000/metrics
 curl http://localhost:8001/metrics
 curl http://localhost:9090/-/healthy
+curl http://localhost:5000/
 ```
+
+Phase 5 endpoints (API key required):
+- `GET /mlops/ab-test` — canary routing status
+- `POST /mlops/ab-test/promote` — promote canary to production
+- `POST /mlops/ab-test/disable` — disable canary
+- `GET /mlops/experiments` — recent MLflow runs
+- `GET /mlops/model-card` — generate governance model card
+
+Phase 5 environment variables:
+- `MLFLOW_TRACKING_URI` (default in compose: `http://mlflow:5000`)
+- `AB_TESTING_ENABLED` (`true`/`false`)
+- `AB_CANARY_TRAFFIC_PERCENT` (0–100)
+- `PROMOTE_VIA_CANARY` (`true` registers improved models as canary first)
+- `ONNX_EXPORT_ENABLED` (`false` in compose; enable for ONNX artifact export)
 
 If `API_KEY_REQUIRED=true`, use header `X-API-Key` for:
 - `/predict`

@@ -25,7 +25,15 @@ services:
       - RATE_LIMIT_WINDOW_SECONDS=60
       - AUDIT_DB_PATH=data/mlops_audit.db
       - PREDICTION_SLA_SECONDS=1.0
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_EXPERIMENT_NAME=gold_price_retraining
+      - AB_TESTING_ENABLED=${AB_TESTING_ENABLED:-false}
+      - AB_CANARY_TRAFFIC_PERCENT=${AB_CANARY_TRAFFIC_PERCENT:-10}
+      - PROMOTE_VIA_CANARY=${PROMOTE_VIA_CANARY:-true}
+      - ONNX_EXPORT_ENABLED=${ONNX_EXPORT_ENABLED:-false}
     restart: unless-stopped
+    depends_on:
+      - mlflow
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -52,12 +60,35 @@ services:
       - MLOPS_SCHEDULER_POLL_SECONDS=60
       - PROMETHEUS_WORKER_PORT=8001
       - AUDIT_DB_PATH=data/mlops_audit.db
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_EXPERIMENT_NAME=gold_price_retraining
+      - PROMOTE_VIA_CANARY=${PROMOTE_VIA_CANARY:-true}
     restart: unless-stopped
+    depends_on:
+      - mlflow
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mlops-net
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.12.1
+    container_name: gold-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./models:/mlflow/models
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlruns/mlflow.db
+      --default-artifact-root /mlflow/mlruns
+    restart: unless-stopped
     networks:
       - mlops-net
 
