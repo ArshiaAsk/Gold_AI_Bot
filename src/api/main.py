@@ -23,6 +23,7 @@ from config.logging import setup_logging
 from src.mlops.api_integration import initialize_mlops
 from src.mlops.background_tasks import UptimeTracker
 from src.mlops.audit_store import AuditStore
+from src.mlops.prediction_router import PredictionRouter
 from src.api.security import (
     AUTH_REQUIRED,
     RATE_LIMIT_ENABLED,
@@ -121,7 +122,9 @@ class ErrorResponse(BaseModel):
 model_artifacts = {
     "predictor": None,
     "feature_builder": None,
-    "status": "startup"
+    "prediction_router": None,
+    "onnx_path": None,
+    "status": "startup",
 }
 
 mlops_artifacts = {
@@ -169,8 +172,24 @@ async def lifespan(app: FastAPI):
             model_artifacts["status"] = "ready"
             logger.info("✅ Model and predictor loaded successfully")
 
+            if os.getenv("ONNX_EXPORT_ENABLED", "true").lower() in {"1", "true", "yes"}:
+                from src.mlops.onnx_exporter import ensure_onnx_artifact
+
+                onnx_path = ensure_onnx_artifact(str(model_path))
+                model_artifacts["onnx_path"] = onnx_path
+                if onnx_path:
+                    logger.info("✅ ONNX artifact ready at %s", onnx_path)
+
         integration = initialize_mlops()
         mlops_artifacts["integration"] = integration
+        predictor = model_artifacts.get("predictor")
+        if predictor is not None:
+            model_artifacts["prediction_router"] = PredictionRouter(
+                default_predictor=predictor,
+                registry=integration.pipeline.registry,
+                scaler_X_path=str(scaler_X_path),
+                scaler_y_path=str(scaler_y_path),
+            )
         logger.info("✅ MLOps integration initialized")
         audit_store = AuditStore.from_env()
         mlops_artifacts["audit_store"] = audit_store
@@ -256,6 +275,9 @@ async def root():
         "metrics": "/metrics",
         "mlops_health": "/mlops/health",
         "mlops_registry": "/mlops/model-registry",
+        "mlops_ab_test": "/mlops/ab-test",
+        "mlops_experiments": "/mlops/experiments",
+        "mlops_model_card": "/mlops/model-card",
     }
 
 
@@ -283,7 +305,7 @@ async def predict_price(
     """  
     Predict next day gold price using raw features
     """
-    predictor = model_artifacts.get("predictor")
+    predictor, routing_meta = _resolve_predictor(http_request)
     
     if predictor is None:
         raise HTTPException(
@@ -298,6 +320,7 @@ async def predict_price(
 
         # Make prediction
         result = predictor.predict_price(features, request.current_price)
+        result["routing"] = routing_meta
         latency = time.perf_counter() - start
 
         integration = mlops_artifacts.get("integration")
@@ -347,7 +370,7 @@ async def predict_with_confidence(
     """
     Predict with Monte Carlo confidence intervals
     """
-    predictor = model_artifacts.get("predictor")
+    predictor, routing_meta = _resolve_predictor(http_request)
     
     if predictor is None:
         raise HTTPException(
@@ -364,6 +387,7 @@ async def predict_with_confidence(
             request.current_price,
             n_simulations=n_simulations
         )
+        result["routing"] = routing_meta
         latency = time.perf_counter() - start
 
         integration = mlops_artifacts.get("integration")
@@ -412,7 +436,7 @@ async def predict_from_history(
     """
     Predict using historical market data (auto feature extraction)
     """
-    predictor = model_artifacts.get("predictor")
+    predictor, routing_meta = _resolve_predictor(http_request)
     feature_builder = model_artifacts.get("feature_builder")
     
     if predictor is None or feature_builder is None:
@@ -431,6 +455,7 @@ async def predict_from_history(
 
         # Make Prediction
         result = predictor.predict_price(features, request.current_price)
+        result["routing"] = routing_meta
         latency = time.perf_counter() - start
 
         integration = mlops_artifacts.get("integration")
@@ -510,6 +535,90 @@ async def mlops_model_registry(name: Optional[str] = None, _: None = Depends(req
     return {"models": integration.list_registry(name=name)}
 
 
+@app.get("/mlops/ab-test")
+async def mlops_ab_test(_: None = Depends(require_api_key)):
+    """A/B canary routing status."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MLOps integration is not initialized",
+        )
+    return integration.phase5.ab_router.status()
+
+
+@app.post("/mlops/ab-test/promote")
+async def mlops_ab_promote(_: None = Depends(require_api_key)):
+    """Promote canary model to production."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MLOps integration is not initialized",
+        )
+    try:
+        promoted = integration.phase5.ab_router.promote_canary()
+        integration.pipeline.baseline_metrics = {
+            k: float(promoted.get("metrics", {}).get(k, integration.pipeline.baseline_metrics[k]))
+            for k in ("rmse", "mae", "r2", "mape")
+            if k in integration.pipeline.baseline_metrics
+        }
+        return {"status": "promoted", "model": promoted}
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@app.post("/mlops/ab-test/disable")
+async def mlops_ab_disable(_: None = Depends(require_api_key)):
+    """Disable canary routing and archive canary model."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MLOps integration is not initialized",
+        )
+    integration.phase5.ab_router.disable_canary()
+    return {"status": "canary_disabled"}
+
+
+@app.get("/mlops/experiments")
+async def mlops_experiments(
+    max_results: int = Query(10, ge=1, le=100),
+    _: None = Depends(require_api_key),
+):
+    """List recent MLflow experiment runs."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MLOps integration is not initialized",
+        )
+    return {
+        "tracking_enabled": integration.phase5.experiment_tracker.enabled,
+        "runs": integration.phase5.list_experiments(max_results=max_results),
+    }
+
+
+@app.get("/mlops/model-card")
+async def mlops_model_card(
+    version: Optional[int] = None,
+    name: str = "gold_lstm",
+    _: None = Depends(require_api_key),
+):
+    """Generate governance model card for a registry version."""
+    integration = mlops_artifacts.get("integration")
+    if integration is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MLOps integration is not initialized",
+        )
+    try:
+        card = integration.phase5.generate_model_card(version=version, name=name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return {"card": card, "available_cards": integration.phase5.list_model_cards()}
+
+
 @app.get("/model-info")
 async def get_model_info(_: None = Depends(require_api_key)):
     """Get information about the loaded model"""
@@ -521,9 +630,13 @@ async def get_model_info(_: None = Depends(require_api_key)):
             detail="Model not loaded"
         )
     
-    try: 
+    try:
+        integration = mlops_artifacts.get("integration")
+        phase5_status = integration.phase5.status() if integration else None
         model_summary = {
             "model_path": predictor.model_path,
+            "onnx_path": model_artifacts.get("onnx_path"),
+            "phase5": phase5_status,
             "input_shape": str(predictor.model.input_shape),
             "output_shape": str(predictor.model.output_shape),
             # Count params might be tricky if model isn't built fully, but load_model usually builds it
@@ -557,6 +670,18 @@ async def value_error_handler(request: Request, exc: ValueError):
         status_code=400,
         content={"success": False, "error": "Invalid Input", "detail": str(exc)}
     )
+
+def _resolve_predictor(http_request: Request):
+    router = model_artifacts.get("prediction_router")
+    if router is None:
+        return model_artifacts.get("predictor"), {
+            "variant": "production",
+            "model_version": None,
+            "model_path": None,
+        }
+    routing_key = client_key(http_request)
+    return router.resolve(routing_key=routing_key)
+
 
 def _health_checks(audit_store: Optional[AuditStore], model_ready: bool) -> Dict[str, Any]:
     base_path = Path(__file__).resolve().parent.parent.parent
@@ -608,10 +733,14 @@ def _log_prediction_audit(
 
     integration = mlops_artifacts.get("integration")
     model_version = None
-    if integration is not None:
-        production = integration.pipeline.registry.get_current_production_model()
-        if production:
-            model_version = production.get("version")
+    if integration is not None and result:
+        routing = result.get("routing") if isinstance(result, dict) else None
+        if routing and routing.get("model_version") is not None:
+            model_version = routing.get("model_version")
+        else:
+            production = integration.pipeline.registry.get_current_production_model()
+            if production:
+                model_version = production.get("version")
 
     predicted_price = None
     confidence_lower = None
