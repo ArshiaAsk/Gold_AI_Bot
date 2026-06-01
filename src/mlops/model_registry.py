@@ -65,6 +65,64 @@ class ModelRegistry:
         logger.info("Registered model %s version %s", name, version)
         return entry
 
+    def register_canary(
+        self,
+        model,
+        metrics: Dict[str, Any],
+        history: Optional[Dict[str, Any]] = None,
+        model_params: Optional[Dict[str, Any]] = None,
+        name: str = "gold_lstm",
+    ) -> Dict[str, Any]:
+        """Register a candidate model for A/B canary traffic."""
+        self.clear_canary(name=name)
+        entry = self._save_versioned_model(
+            model=model,
+            metrics=metrics,
+            history=history,
+            model_params=model_params,
+            name=name,
+            status="canary",
+            promoted=False,
+        )
+        logger.info("Registered canary model %s version %s", name, entry["version"])
+        return entry
+
+    def get_canary_model(self, name: str = "gold_lstm") -> Optional[Dict[str, Any]]:
+        for entry in reversed(self.metadata):
+            if entry.get("name") == name and entry.get("status") == "canary":
+                return entry
+        return None
+
+    def promote_canary(self, name: str = "gold_lstm") -> Dict[str, Any]:
+        canary = self.get_canary_model(name=name)
+        if canary is None:
+            raise ValueError(f"No canary model registered for '{name}'")
+
+        for entry in self.metadata:
+            if entry.get("name") != name:
+                continue
+            if entry.get("version") == canary.get("version"):
+                entry["status"] = "production"
+                entry["promoted"] = True
+            elif entry.get("status") == "production":
+                entry["status"] = "archived"
+                entry["promoted"] = False
+
+        self._save_metadata()
+        logger.info("Promoted canary %s version %s to production", name, canary.get("version"))
+        return canary
+
+    def clear_canary(self, name: str = "gold_lstm") -> None:
+        changed = False
+        for entry in self.metadata:
+            if entry.get("name") == name and entry.get("status") == "canary":
+                entry["status"] = "archived"
+                entry["promoted"] = False
+                changed = True
+        if changed:
+            self._save_metadata()
+            logger.info("Cleared canary model for %s", name)
+
     def get_best_model(self, name: str = "gold_lstm") -> Optional[Dict[str, Any]]:
         candidates = [m for m in self.metadata if m.get("name") == name]
         if not candidates:
@@ -134,6 +192,37 @@ class ModelRegistry:
     def _next_version(self, name: str) -> int:
         versions = [int(m["version"]) for m in self.metadata if m.get("name") == name]
         return max(versions, default=0) + 1
+
+    def _save_versioned_model(
+        self,
+        *,
+        model,
+        metrics: Dict[str, Any],
+        history: Optional[Dict[str, Any]],
+        model_params: Optional[Dict[str, Any]],
+        name: str,
+        status: str,
+        promoted: bool,
+    ) -> Dict[str, Any]:
+        version = self._next_version(name)
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        model_path = self.models_dir / f"{name}_v{version}_{timestamp}.keras"
+        model.save(str(model_path))
+
+        entry: Dict[str, Any] = {
+            "version": version,
+            "name": name,
+            "path": str(model_path),
+            "timestamp": timestamp,
+            "metrics": self._to_serializable(metrics),
+            "model_params": self._to_serializable(model_params),
+            "training_history": self._to_serializable(history),
+            "promoted": promoted,
+            "status": status,
+        }
+        self.metadata.append(entry)
+        self._save_metadata()
+        return entry
 
     def _load_metadata(self) -> List[Dict[str, Any]]:
         if not self.metadata_file.exists():
