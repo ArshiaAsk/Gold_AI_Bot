@@ -27,7 +27,9 @@ class AutoRetrainingPipeline:
         self.validator = ModelValidator()
         self.registry = ModelRegistry()
         self.drift_detector = DriftDetector()
-        self.tracker = ExperimentTracker("gold_price_retraining")
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+        experiment_name = os.getenv("MLFLOW_EXPERIMENT_NAME", "gold_price_retraining")
+        self.tracker = ExperimentTracker(experiment_name, tracking_uri=tracking_uri)
         self.alerting = Alerting(service_name="gold-retraining")
         self.metrics_exporter = MetricsExporter()
         self.audit_store = AuditStore(db_path=os.getenv("AUDIT_DB_PATH", "data/mlops_audit.db"))
@@ -98,19 +100,36 @@ class AutoRetrainingPipeline:
                 return False
 
             if self._should_promote(new_metrics, self.baseline_metrics):
-                registration = self.registry.register_model(
-                    model=new_model,
-                    metrics=new_metrics,
-                    history=history,
-                    model_params=self._model_params(),
-                )
-                self.baseline_metrics = new_metrics
-                self._log_run(new_metrics, status="promoted", model=new_model, data=data)
+                promote_via_canary = os.getenv(
+                    "PROMOTE_VIA_CANARY", "true"
+                ).lower() in {"1", "true", "yes"}
+                if promote_via_canary:
+                    registration = self.registry.register_canary(
+                        model=new_model,
+                        metrics=new_metrics,
+                        history=history,
+                        model_params=self._model_params(),
+                    )
+                    run_status = "canary_registered"
+                else:
+                    registration = self.registry.register_model(
+                        model=new_model,
+                        metrics=new_metrics,
+                        history=history,
+                        model_params=self._model_params(),
+                    )
+                    run_status = "promoted"
+                    self.baseline_metrics = new_metrics
+                self._log_run(new_metrics, status=run_status, model=new_model, data=data)
                 self.metrics_exporter.set_model_metrics(
                     rmse=float(new_metrics["rmse"]),
                     r2=float(new_metrics["r2"]),
                 )
-                logger.info("Promoted model version %s", registration["version"])
+                logger.info(
+                    "Registered model version %s (%s)",
+                    registration["version"],
+                    run_status,
+                )
                 return True
 
             self._log_run(new_metrics, status="rejected", reason="no_improvement")

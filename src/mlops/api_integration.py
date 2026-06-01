@@ -6,19 +6,21 @@ from typing import Any, Dict, Optional
 from config.settings import Config
 from src.mlops.background_tasks import SchedulerBackgroundService
 from src.mlops.metrics_exporter import MetricsExporter
+from src.mlops.phase5_integration import Phase5Integration
 from src.mlops.retraining_pipeline import AutoRetrainingPipeline
 from src.mlops.scheduler import MLOpsScheduler
 
 
 @dataclass
 class MLOpsIntegration:
-    """Runtime holder for all Phase 4 MLOps components."""
+    """Runtime holder for Phase 4 + Phase 5 MLOps components."""
 
     config: Config
     metrics_exporter: MetricsExporter
     pipeline: AutoRetrainingPipeline
     scheduler: MLOpsScheduler
     background_service: SchedulerBackgroundService
+    phase5: Phase5Integration
 
     def start(self) -> None:
         self.background_service.start()
@@ -28,6 +30,7 @@ class MLOpsIntegration:
 
     def health(self) -> Dict[str, Any]:
         production_model = self.pipeline.registry.get_current_production_model()
+        canary_model = self.pipeline.registry.get_canary_model()
         return {
             "status": "healthy",
             "scheduler": self.background_service.status(),
@@ -40,6 +43,14 @@ class MLOpsIntegration:
             }
             if production_model
             else None,
+            "canary_model": {
+                "name": canary_model.get("name"),
+                "version": canary_model.get("version"),
+                "timestamp": canary_model.get("timestamp"),
+            }
+            if canary_model
+            else None,
+            "phase5": self.phase5.status(),
         }
 
     def list_registry(self, name: Optional[str] = None):
@@ -72,12 +83,15 @@ def initialize_mlops(
         poll_seconds=scheduler_poll_seconds,
     )
 
+    phase5 = Phase5Integration.create(registry=pipeline.registry)
+
     integration = MLOpsIntegration(
         config=resolved_config,
         metrics_exporter=metrics_exporter,
         pipeline=pipeline,
         scheduler=scheduler,
         background_service=background_service,
+        phase5=phase5,
     )
 
     integration.start()
