@@ -125,3 +125,6 @@ pytestdebug.log
 
 # MLflow experiment artifacts
 mlruns/
+
+# Dir
+docs/

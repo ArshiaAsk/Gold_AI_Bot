@@ -46,11 +46,6 @@ curl http://localhost:8001/metrics
 7. If failures happen, alerting emits logs and optional Slack/Telegram/SMTP notifications.
 8. Operators monitor Grafana dashboards and can rollback via model registry metadata.
 
-### MLOps Docs
-
-- `docs/mlops_deployment.md`
-- `docs/mlops_configuration.md`
-- `docs/mlops_troubleshooting.md`
 
 ---
 
@@ -472,22 +467,23 @@ python-multipart >= 0.0.6
 
 ### Example API Output
 
-================================================================================
+
 Current Market State
-================================================================================
+===============================================================================
 Current Gold Price: 144,000,000 Toman
 USD/IRR Rate: 250,000
 Gold Ounce (USD): $1,850
 Crude Oil (USD): $70
 
-================================================================================
+
+
 Model Prediction
 ================================================================================
 Predicted Price: 144,419,047 Toman
 Price Change: +419,047 Toman (+0.29%)
 Predicted Log Return: 0.00285
 
-================================================================================
+
 Confidence Analysis
 ================================================================================
 95% Confidence Interval: [142,903,583 - 145,952,433]
@@ -495,7 +491,7 @@ Price Range (±): 1,515,464 Toman
 Standard Deviation: 769,126 Toman
 Simulations: 100
 
-================================================================================
+
 Trading Signal (Example)
 ================================================================================
 Signal: BUY (Weak)
