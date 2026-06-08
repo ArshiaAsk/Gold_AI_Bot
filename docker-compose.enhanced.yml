@@ -1,0 +1,272 @@
+version: '3.8'
+
+# ============================================================================
+# Multi-Service MLOps Stack with Streamlit UI
+# Phase 5 Gold Price Prediction System
+# ============================================================================
+# Services:
+#   - streamlit    : Web UI (port 8501)
+#   - api          : FastAPI backend (port 8000)
+#   - mlops-worker : MLOps background jobs (port 8001)
+#   - mlflow       : Experiment tracking (port 5000)
+#   - prometheus   : Metrics collection (port 9090)
+#   - grafana      : Monitoring dashboards (port 3000)
+#
+# Architecture:
+#   Users → Streamlit UI (port 8501)
+#        ↓ (HTTP requests)
+#        ↓ Optional direct connection to API
+#   API Service (port 8000) ← MLOps Worker (port 8001)
+#        ↓
+#   MLflow Experiment Tracking (port 5000)
+#        ↓
+#   Prometheus (port 9090) → Grafana (port 3000)
+#
+# ============================================================================
+
+services:
+  # ========================================================================
+  # STREAMLIT UI SERVICE - User Interface
+  # ========================================================================
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: gold-streamlit-ui
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./streamlit_app.py:/app/streamlit_app.py
+      - ./src:/app/src
+      - ./api_layer:/app/api_layer
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    environment:
+      - LOG_LEVEL=INFO
+      - API_URL=http://api:8000
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_LOGGER_LEVEL=info
+      - STREAMLIT_CLIENT_SHOW_ERROR_DETAILS=true
+    restart: unless-stopped
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    networks:
+      - mlops-net
+    labels:
+      - "com.gold-predictor.service=streamlit"
+      - "com.gold-predictor.version=1.0"
+
+  # ========================================================================
+  # FASTAPI BACKEND SERVICE
+  # ========================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gold-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./cache:/app/cache
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=INFO
+      - MLOPS_SCHEDULER_POLL_SECONDS=60
+      - CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8000,http://localhost:8501,http://streamlit:8501
+      - API_KEY_REQUIRED=true
+      - API_KEY=${API_KEY:-change-this-api-key}
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_REQUESTS=120
+      - RATE_LIMIT_WINDOW_SECONDS=60
+      - AUDIT_DB_PATH=data/mlops_audit.db
+      - PREDICTION_SLA_SECONDS=1.0
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_EXPERIMENT_NAME=gold_price_retraining
+      - AB_TESTING_ENABLED=${AB_TESTING_ENABLED:-false}
+      - AB_CANARY_TRAFFIC_PERCENT=${AB_CANARY_TRAFFIC_PERCENT:-10}
+      - PROMOTE_VIA_CANARY=${PROMOTE_VIA_CANARY:-true}
+      - ONNX_EXPORT_ENABLED=${ONNX_EXPORT_ENABLED:-false}
+    restart: unless-stopped
+    depends_on:
+      - mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mlops-net
+    labels:
+      - "com.gold-predictor.service=api"
+      - "com.gold-predictor.tier=backend"
+
+  # ========================================================================
+  # MLOPS WORKER SERVICE - Background Tasks
+  # ========================================================================
+  mlops-worker:
+    build:
+      context: .
+      dockerfile: mlops.Dockerfile
+    container_name: gold-mlops-worker
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./cache:/app/cache
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=INFO
+      - MLOPS_SCHEDULER_POLL_SECONDS=60
+      - PROMETHEUS_WORKER_PORT=8001
+      - AUDIT_DB_PATH=data/mlops_audit.db
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_EXPERIMENT_NAME=gold_price_retraining
+      - PROMOTE_VIA_CANARY=${PROMOTE_VIA_CANARY:-true}
+    restart: unless-stopped
+    depends_on:
+      - mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mlops-net
+    labels:
+      - "com.gold-predictor.service=mlops-worker"
+      - "com.gold-predictor.tier=backend"
+
+  # ========================================================================
+  # MLFLOW SERVICE - Experiment Tracking & Model Registry
+  # ========================================================================
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.12.1
+    container_name: gold-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./models:/mlflow/models
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlruns/mlflow.db
+      --default-artifact-root /mlflow/mlruns
+    restart: unless-stopped
+    networks:
+      - mlops-net
+    labels:
+      - "com.gold-predictor.service=mlflow"
+      - "com.gold-predictor.tier=backend"
+
+  # ========================================================================
+  # PROMETHEUS SERVICE - Metrics Collection
+  # ========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gold-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    depends_on:
+      - api
+      - mlops-worker
+    networks:
+      - mlops-net
+    labels:
+      - "com.gold-predictor.service=prometheus"
+      - "com.gold-predictor.tier=monitoring"
+
+  # ========================================================================
+  # GRAFANA SERVICE - Monitoring Dashboards
+  # ========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gold-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - mlops-net
+    labels:
+      - "com.gold-predictor.service=grafana"
+      - "com.gold-predictor.tier=monitoring"
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  mlops-net:
+    driver: bridge
+    name: gold-mlops-network
+
+# ============================================================================
+# USAGE:
+# ============================================================================
+# Build and start all services:
+#   docker-compose up --build
+#
+# View logs:
+#   docker-compose logs -f streamlit
+#   docker-compose logs -f api
+#   docker-compose logs -f mlops-worker
+#
+# Stop services:
+#   docker-compose down
+#
+# Access services:
+#   Streamlit UI:    http://localhost:8501
+#   API:             http://localhost:8000
+#   MLflow:          http://localhost:5000
+#   Prometheus:      http://localhost:9090
+#   Grafana:         http://localhost:3000 (admin/admin)
+#
+# ============================================================================
