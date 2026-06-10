@@ -1,140 +1,27 @@
+# Optional: Docker Compose for local development/testing
+# Note: Hugging Face Spaces will use the Dockerfile directly
 version: '3.8'
 
 services:
-  api:
+  ml-stack:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gold-api
     ports:
-      - "8000:8000"
+      - "7860:7860"  # Streamlit UI
+      - "8000:8000"  # FastAPI (for local testing)
+      - "5000:5000"  # MLflow (for local testing)
+      - "9100:9100"  # Prometheus (for local testing)
     volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-      - ./data:/app/data
-    env_file:
-      - .env
+      - ./data:/data
+      - ./mlflow:/mlflow
+      - ./logs:/logs
     environment:
-      - LOG_LEVEL=INFO
-      - MLOPS_SCHEDULER_POLL_SECONDS=60
-      - CORS_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8000
-      - API_KEY_REQUIRED=true
-      - API_KEY=${API_KEY:-change-this-api-key}
-      - RATE_LIMIT_ENABLED=true
-      - RATE_LIMIT_REQUESTS=120
-      - RATE_LIMIT_WINDOW_SECONDS=60
-      - AUDIT_DB_PATH=data/mlops_audit.db
-      - PREDICTION_SLA_SECONDS=1.0
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - MLFLOW_EXPERIMENT_NAME=gold_price_retraining
-      - AB_TESTING_ENABLED=${AB_TESTING_ENABLED:-false}
-      - AB_CANARY_TRAFFIC_PERCENT=${AB_CANARY_TRAFFIC_PERCENT:-10}
-      - PROMOTE_VIA_CANARY=${PROMOTE_VIA_CANARY:-true}
-      - ONNX_EXPORT_ENABLED=${ONNX_EXPORT_ENABLED:-false}
-    restart: unless-stopped
-    depends_on:
-      - mlflow
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+      - FASTAPI_URL=http://localhost:8000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:7860/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - mlops-net
-
-  mlops-worker:
-    build:
-      context: .
-      dockerfile: mlops.Dockerfile
-    container_name: gold-mlops-worker
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-      - ./data:/app/data
-    env_file:
-      - .env
-    environment:
-      - LOG_LEVEL=INFO
-      - MLOPS_SCHEDULER_POLL_SECONDS=60
-      - PROMETHEUS_WORKER_PORT=8001
-      - AUDIT_DB_PATH=data/mlops_audit.db
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - MLFLOW_EXPERIMENT_NAME=gold_price_retraining
-      - PROMOTE_VIA_CANARY=${PROMOTE_VIA_CANARY:-true}
-    restart: unless-stopped
-    depends_on:
-      - mlflow
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - mlops-net
-
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.12.1
-    container_name: gold-mlflow
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./mlruns:/mlflow/mlruns
-      - ./models:/mlflow/models
-    command: >
-      mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri sqlite:///mlflow/mlruns/mlflow.db
-      --default-artifact-root /mlflow/mlruns
-    restart: unless-stopped
-    networks:
-      - mlops-net
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: gold-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.retention.time=15d"
-      - "--web.enable-lifecycle"
-    restart: unless-stopped
-    depends_on:
-      - api
-      - mlops-worker
-    networks:
-      - mlops-net
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: gold-grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-    restart: unless-stopped
-    depends_on:
-      - prometheus
-    networks:
-      - mlops-net
-
-volumes:
-  prometheus_data:
-  grafana_data:
-
-networks:
-  mlops-net:
-    driver: bridge
+      start_period: 60s
