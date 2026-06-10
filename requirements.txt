@@ -8,18 +8,20 @@ scikit-learn>=1.3.0
 # Visualization
 matplotlib>=3.7.0
 seaborn>=0.12.0
+plotly>=5.14.0
 
 # Utilities
 joblib>=1.3.0
 scipy>=1.11.0
+psutil>=5.9.0
 
 # FastAPI and server
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
+# pydantic==2.5.0
 
 # API utilities
-python-multipart==0.0.6
+# python-multipart==0.0.6
 httpx==0.25.1
 
 # Monitoring
@@ -27,9 +29,9 @@ prometheus-fastapi-instrumentator==6.1.0
 prometheus-client>=0.16.0
 
 # Time & requests
-python-dateutil>=2.8.0
-pytz>=2023.3
-requests>=2.31.0
+# python-dateutil>=2.8.0
+# pytz>=2023.3
+# requests>=2.31.0
 
 # MLOps
 mlflow==2.12.1
@@ -37,3 +39,9 @@ evidently==0.4.20
 onnxruntime==1.23.2
 tf2onnx>=1.16.0
 schedule==1.2.2
+
+# Streamlit
+streamlit>=1.28.0
+# streamlit-option-menu>=0.3.6
+
+aiofiles>=23.2.0
