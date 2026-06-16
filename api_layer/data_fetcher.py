@@ -277,23 +277,23 @@ class TGJUDataFetcher:
 
 # ==================== UTILITY FUNCTIONS ====================
 
-def test_api_connection():
-    """Test if TGJU API is accessible"""
-    fetcher = TGJUDataFetcher()
-    prices = fetcher.get_all_latest_prices()
+# def test_api_connection():
+#     """Test if TGJU API is accessible"""
+#     fetcher = TGJUDataFetcher()
+#     prices = fetcher.get_all_latest_prices()
     
-    if prices:
-        print("\n✓ API connection successful!")
-        print(f"Gold IRR: {prices['Gold_IRR']:,.0f}")
-        print(f"USD/IRR: {prices['USD_IRR']:,.0f}")
-        print(f"Gold USD: ${prices['Ounce_USD']:,.2f}")
-        print(f"Oil USD: ${prices['Oil_USD']:,.2f}")
-        return True
-    else:
-        print("\n✗ API connection failed")
-        print("This is expected in development - will use historical data fallback")
-        return False
+#     if prices:
+#         print("\n✓ API connection successful!")
+#         print(f"Gold IRR: {prices['Gold_IRR']:,.0f}")
+#         print(f"USD/IRR: {prices['USD_IRR']:,.0f}")
+#         print(f"Gold USD: ${prices['Ounce_USD']:,.2f}")
+#         print(f"Oil USD: ${prices['Oil_USD']:,.2f}")
+#         return True
+#     else:
+#         print("\n✗ API connection failed")
+#         print("This is expected in development - will use historical data fallback")
+#         return False
 
 
-if __name__ == "__main__":
-    test_api_connection()
+# if __name__ == "__main__":
+#     test_api_connection()

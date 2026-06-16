@@ -45,6 +45,7 @@ data/*.db
 data/*.sqlite
 *.csv
 *.parquet
+mlflow.db
 
 # Logs
 logs/
@@ -59,7 +60,6 @@ Thumbs.db
 
 # MLflow
 mlflow/
-mlflow.db
 
 # Temporary files
 *.tmp

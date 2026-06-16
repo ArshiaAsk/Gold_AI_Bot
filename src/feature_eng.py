@@ -5,7 +5,7 @@ import sys
 
 # Add root directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.settings import Config
+from config.settings import config
 from src.utils import logger
 
 class FeatureEngineer:
@@ -13,7 +13,7 @@ class FeatureEngineer:
         """
         Initialize the Feature Engineer.
         """
-        self.processed_dir = Config.DATA_PROCESSED_DIR
+        self.processed_dir = config.paths.DATA_PROCESSED_DIR
 
     @staticmethod
     def calculate_rsi(series, period=14):
@@ -105,3 +105,20 @@ class FeatureEngineer:
         path = os.path.join(self.processed_dir, filename)
         df.to_csv(path)
         logger.info(f"Processed data saved to {path}")
+
+
+
+if __name__ == "__main__":
+    # Load CSV directly from path
+    df = pd.read_csv(
+        "data/raw/final_gold_dataset.csv",
+        index_col="Date",
+        parse_dates=True
+    )
+    df.sort_index(inplace=True)
+
+    engineer = FeatureEngineer()
+    df_features = engineer.create_features(df)
+    engineer.save_processed_data(df_features)
+    print(df_features.head())
+    print(f"Shape: {df_features.shape}")

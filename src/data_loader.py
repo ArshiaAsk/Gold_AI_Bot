@@ -8,13 +8,12 @@ from datetime import datetime
 
 # Add root directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from ..config.settings import Config
-from .utils import logger
+from config.settings import config
+from src.utils import logger
 
 class DataLoader:
     def __init__(self):
-        self.data_raw_dir = Config.DATA_RAW_DIR
-
+        self.data_raw_dir = config.paths.DATA_RAW_DIR
     @staticmethod
     def clean_value(x):
         """
@@ -122,8 +121,8 @@ class DataLoader:
         Main Pipeline: Download Local Data -> Download Global Data -> Merge -> Clean.
         """
         # 1. Download Local Data (Gold & USD)
-        df_gold = self.get_tgju_history(Config.TICKER_GOLD)
-        df_usd = self.get_tgju_history(Config.TICKER_USD)
+        df_gold = self.get_tgju_history(config.data.TICKER_GOLD)
+        df_usd = self.get_tgju_history(config.data.TICKER_USD)
 
         # 2. Merge Local Data
         main_df = pd.DataFrame()
@@ -178,3 +177,11 @@ class DataLoader:
         else:
             logger.warning("Raw data file not found.")
             return None
+
+
+# if __name__ == "__main__":
+#     loader = DataLoader()
+#     df = loader.fetch_data()
+#     if df is not None:
+#         loader.save_raw_data(df)
+#         print(df.head())
